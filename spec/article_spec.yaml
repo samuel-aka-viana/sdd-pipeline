@@ -94,7 +94,7 @@ analysis:
     - otimizacoes
 
 models:
-  researcher: "gemma4:e4b"
+  researcher: "gemma4:26b"
   analyst:    "glm-4.7-flash:q4_K_M"
   writer:     "gemma4:26b"
   critic:     "glm-4.7-flash:q4_K_M"
