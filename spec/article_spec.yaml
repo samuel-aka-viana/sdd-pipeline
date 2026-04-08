@@ -94,10 +94,10 @@ analysis:
     - otimizacoes
 
 models:
-  researcher: "qwen2.5:14b-instruct-q4_K_M"
-  analyst:    "qwen2.5:14b-instruct-q4_K_M"
-  writer:     "qwen2.5:14b-instruct-q5_K_M "
-  critic:     "qwen2.5:7b-instruct-q5_K_M"
+  researcher: "glm-5.1:cloud"
+  analyst:    "glm-5.1:cloud"
+  writer:     "glm-5.1:cloud"
+  critic:     "glm-5.1:cloud"
 
 ollama:
   base_url: "http://localhost:11434"

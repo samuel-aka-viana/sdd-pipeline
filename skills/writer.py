@@ -16,7 +16,7 @@ class WriterSkill:
 
     def run(self, research, analysis, ferramentas, contexto,
             foco="comparação geral", questoes=None,
-            correction_instructions=""):
+            correction_instructions="", research_quality="ok"):
 
         questoes = questoes or []
         lessons = self.memory.get_lessons_for_prompt()
@@ -24,8 +24,19 @@ class WriterSkill:
         correction_block = ""
         if correction_instructions:
             correction_block = f"""
+############################################################
+# CORREÇÕES OBRIGATÓRIAS — O ARTIGO FOI REPROVADO
+# Se estas correções não forem aplicadas, será reprovado de novo.
+############################################################
+
 {correction_instructions}
-Corrija esses problemas específicos. Não altere o que já está correto.
+
+ATENÇÃO: O artigo anterior foi REJEITADO por conter os problemas acima.
+- Releia CADA problema listado
+- Encontre o trecho exato no artigo que causa o problema
+- Reescreva APENAS esse trecho
+- NÃO use as palavras/frases proibidas em nenhum lugar do artigo
+############################################################
 """
 
         questoes_block = ""
@@ -39,6 +50,21 @@ Cada resposta deve aparecer claramente no texto.
 
         lessons_block = f"\n{lessons}\n" if lessons else ""
 
+        research_warning = ""
+        if research_quality == "weak":
+            research_warning = """
+############################################################
+# AVISO: OS DADOS DE PESQUISA SÃO INSUFICIENTES
+# A pesquisa retornou poucos dados concretos.
+# Você DEVE:
+# - OMITIR seções inteiras se não houver dados para preenchê-las
+# - NUNCA inventar comandos, URLs, nomes de modelos ou números
+# - Preferir escrever "Não foram encontrados dados concretos" do que inventar
+# - Manter o artigo CURTO se os dados forem poucos
+# Um artigo curto e correto é melhor que um longo e inventado.
+############################################################
+"""
+
         prompt = f"""Você é um tech writer experiente. Escreva um artigo técnico completo.
 
 FERRAMENTAS: {ferramentas}
@@ -47,6 +73,7 @@ FOCO: {foco}
 {questoes_block}
 {correction_block}
 {lessons_block}
+{research_warning}
 
 DADOS DE PESQUISA:
 {research}
