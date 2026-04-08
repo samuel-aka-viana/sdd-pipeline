@@ -8,25 +8,52 @@ article:
     - exemplo_pratico
     - armadilhas
     - otimizacoes
+    - conclusao
     - referencias
+
   quality_rules:
     no_placeholders:
       patterns:
+        # placeholders explícitos
         - "[Descreva"
         - "[TODO"
         - "[X]"
         - "[inserir"
+        - "[preencher"
         - "PREENCHER"
-        - "DADO AUSENTE"
-        - "NÃO ENCONTRADO"
-        - "NAO ENCONTRADO"
-        - "NOT FOUND"
-        - "N/A"
+        # comentários bash genéricos (solução vazia disfarçada)
+        - "# Verifique"
+        - "# Ajuste"
+        - "# Configure"
+        - "# Corrija"
+        - "# Substitua"
+        # frases genéricas que escondem falta de dado
+        - "conforme necessário"
+        - "configura corretamente"
+        - "de acordo com suas necessidades"
+        - "consulte a documentação oficial"
+        - "verifique a documentação"
+        - "dependendo do seu ambiente"
+        - "ajuste conforme seu caso"
+      message: "Seção contém placeholder ou frase genérica não preenchida"
+
     min_references: 3
     min_errors: 2
     min_tips: 3
+
+    min_solution_chars: 20
+
     hardware_sanity:
       max_ram_minimum_gb: 2
+      message: "RAM mínimo acima de 2GB é provavelmente errado para k3s/microk8s"
+
+    url_validation:
+      must_start_with: "https://"
+      block_patterns:
+        - "example.com"
+        - "seu-repositorio"
+        - "docs.example"
+        - "localhost"
 
 research:
   required_fields:
@@ -35,11 +62,28 @@ research:
     - requisitos
     - erros
     - alternativas
+
   search_queries:
     - "{tool} minimum requirements RAM CPU"
     - "{tool} installation official docs"
+    - "{tool} install docker-compose site:github.com"
     - "{tool} common errors site:stackoverflow.com"
     - "{tool} vs {alternative} comparison"
+    - "{tool} getting started tutorial"
+
+  scraper:
+    max_chars_per_page: 4000
+    max_scrapes_per_tool: 10
+    timeout_seconds: 15
+    skip_domains:
+      - "youtube.com"
+      - "youtu.be"
+      - "twitter.com"
+      - "x.com"
+      - "facebook.com"
+      - "instagram.com"
+      - "tiktok.com"
+      - "pinterest.com"
 
 analysis:
   required_fields:
@@ -62,4 +106,6 @@ ollama:
     analyst:    0.1
     writer:     0.3
     critic:     0.0
-  context_length: 8192
+  context_length:
+    default: 8192
+    writer:  16384

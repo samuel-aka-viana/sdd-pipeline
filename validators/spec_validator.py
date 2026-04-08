@@ -15,13 +15,13 @@ class ValidationResult:
         if self.problems:
             lines.append("PROBLEMAS (bloqueantes):")
             for p in self.problems:
-                lines.append(f"  ❌ {p}")
+                lines.append(f"  ✗ {p}")
         if self.warnings:
             lines.append("AVISOS (não bloqueantes):")
             for w in self.warnings:
                 lines.append(f"  ⚠ {w}")
         if self.passed:
-            lines.append("✅ Artigo passou em todas as validações")
+            lines.append("✓ Artigo passou em todas as validações")
         return "\n".join(lines)
 
 
@@ -29,6 +29,7 @@ class SpecValidator:
 
     def __init__(self, spec_path="spec/article_spec.yaml"):
         self.spec = yaml.safe_load(Path(spec_path).read_text())
+        self._rules = self.spec["article"]["quality_rules"]
 
     def validate(self, artigo, secoes=None):
         problems = []
@@ -47,6 +48,7 @@ class SpecValidator:
             "armadilhas":       ["armadilha", "erro comum", "problema comum",
                                  "pitfall", "⚠"],
             "otimizacoes":      ["otimiza", "dica", "performance"],
+            "conclusao":        ["conclusão", "conclusao", "trade-off", "veredito"],
             "referencias":      ["referência", "referencia", "fontes"],
             "arquitetura":      ["arquitetura", "architecture", "componente"],
             "throughput":       ["throughput", "mensagens/segundo", "msgs/s"],
@@ -65,31 +67,49 @@ class SpecValidator:
             if not any(p in text_lower for p in patterns):
                 problems.append(f"Seção ausente: {secao}")
 
-        spec_patterns = (
-            self.spec["article"]["quality_rules"]["no_placeholders"]["patterns"]
-        )
-        for pattern in spec_patterns:
+        for pattern in self._rules["no_placeholders"]["patterns"]:
             if pattern.lower() in text_lower:
                 problems.append(f"Placeholder não preenchido: '{pattern}'")
 
         urls_reais = re.findall(r'https?://[^\s\)\"\'\]]+', artigo)
-        min_refs = self.spec["article"]["quality_rules"]["min_references"]
+        min_refs = self._rules["min_references"]
         if len(urls_reais) < min_refs:
             problems.append(
                 f"Referências insuficientes: {len(urls_reais)} URLs, mínimo {min_refs}"
             )
 
+        url_rules = self._rules.get("url_validation", {})
+        block = url_rules.get("block_patterns", [])
+        for url in urls_reais:
+            for bp in block:
+                if bp in url:
+                    problems.append(f"URL inválida/placeholder: {url}")
+                    break
+
         error_markers = re.findall(
             r'(erro:|error:|armadilha|problema:|⚠|sintoma:)', text_lower
         )
-        min_errors = self.spec["article"]["quality_rules"].get("min_errors", 2)
+        min_errors = self._rules.get("min_errors", 2)
         if len(error_markers) < min_errors:
             warnings.append(
                 f"Poucos erros documentados: {len(error_markers)}, "
                 f"recomendado {min_errors}"
             )
 
-        hw = self.spec["article"]["quality_rules"].get("hardware_sanity")
+        min_sol = self._rules.get("min_solution_chars", 20)
+        armadilha_blocks = re.findall(
+            r'(?:solução|solu[çc][aã]o)[:\s]*```[a-z]*\n(.*?)```',
+            artigo, re.IGNORECASE | re.DOTALL
+        )
+        for block in armadilha_blocks:
+            content = block.strip()
+            if len(content) < min_sol:
+                problems.append(
+                    f"Solução vazia/genérica em armadilha: "
+                    f"'{content[:40]}' ({len(content)} chars, mínimo {min_sol})"
+                )
+
+        hw = self._rules.get("hardware_sanity")
         if hw:
             max_ram = hw.get("max_ram_minimum_gb", 2)
             ram_values = re.findall(r'(\d+)\s*gb', text_lower)
@@ -108,21 +128,14 @@ class SpecValidator:
         table_rows = re.findall(r'\|(.+)\|', artigo)
         for row in table_rows:
             cells = [c.strip() for c in row.split('|')]
-            if any(c == '' or c == '-' for c in cells if c not in ['', '-']):
-                pass
-            empty_cells = [c for c in cells if c.strip() in ('', '-')
-                          and not re.match(r'^-+$', c.strip())]
-            if any(c.strip() == '' for c in cells
-                   if not re.match(r'^-*$', c.strip())):
-                warnings.append(
-                    f"Tabela com célula vazia detectada"
-                )
+            if any(c == '' for c in cells if not re.match(r'^-+$', c)):
+                warnings.append("Tabela com célula vazia detectada")
                 break
 
         return ValidationResult(
             passed=len(problems) == 0,
             problems=problems,
-            warnings=warnings
+            warnings=warnings,
         )
 
     def problems_as_prompt(self, result):

@@ -1,24 +1,51 @@
+import time
+import logging
+from pathlib import Path
 from ddgs import DDGS
 
+log = logging.getLogger(__name__)
+
+RETRY_WAIT = 5
+MAX_RETRIES = 2
+
+
 class SearchTool:
-    def search(self, query: str, num: int = 8) -> list[dict]:
-        results = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=num):
-                results.append({
-                    "title":   r.get("title", ""),
-                    "url":     r.get("href", ""),
-                    "snippet": r.get("body", "")
-                })
+
+    def __init__(self, results_per_query: int = 8):
+        self.num = results_per_query
+
+    def search(self, query: str, num: int | None = None) -> list[dict]:
+        num = num or self.num
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                with DDGS() as ddgs:
+                    raw = list(ddgs.text(query, max_results=num))
+                return [
+                    {
+                        "title":   r.get("title", ""),
+                        "url":     r.get("href", ""),
+                        "snippet": r.get("body", ""),
+                    }
+                    for r in raw
+                ]
+            except Exception as e:
+                log.warning("search failed (attempt %d): %s — %s", attempt, query, e)
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_WAIT * attempt)
+        return []
+
+    def search_multi(self, queries: list[str], delay: float = 1.0) -> dict[str, list]:
+        results = {}
+        for q in queries:
+            results[q] = self.search(q)
+            if delay > 0:
+                time.sleep(delay)
         return results
 
-    def search_multi(self, queries: list[str]) -> dict[str, list]:
-        return {q: self.search(q) for q in queries}
-
     def save_urls(self, results_by_query: dict, path: str):
-        import os
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with p.open("w", encoding="utf-8") as f:
             for query, results in results_by_query.items():
                 f.write(f"\n## Query: {query}\n")
                 for r in results:

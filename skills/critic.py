@@ -20,7 +20,8 @@ class CriticSkill:
         self.memory.log_event("critic_ran", {
             "ferramentas": ferramentas,
             "passed":      result.passed,
-            "problems":    result.problems
+            "problems":    result.problems,
+            "warnings":    result.warnings,
         })
 
         if not result.passed:
@@ -29,36 +30,50 @@ class CriticSkill:
                 "layer":             "deterministic",
                 "problems":          result.problems,
                 "correction_prompt": self.validator.problems_as_prompt(result),
-                "report":            result.report()
+                "report":            result.report(),
             }
 
         semantic_issues = self._semantic_check(artigo, ferramentas)
 
+        if semantic_issues:
+            prompt_lines = [
+                "O artigo passou na validação estrutural mas tem problemas semânticos:",
+                *[f"- {s}" for s in semantic_issues],
+                "\nCorrija APENAS esses problemas. Mantenha o resto intacto.",
+            ]
+            return {
+                "approved":          False,
+                "layer":             "semantic",
+                "problems":          semantic_issues,
+                "correction_prompt": "\n".join(prompt_lines),
+                "report":            result.report(),
+            }
+
         return {
             "approved": True,
             "layer":    "semantic",
-            "warnings": result.warnings + semantic_issues,
-            "report":   result.report()
+            "warnings": result.warnings,
+            "report":   result.report(),
         }
 
     def _semantic_check(self, artigo: str, ferramentas: str) -> list[str]:
         prompt = f"""Revise este artigo sobre {ferramentas}.
-
 Liste APENAS problemas factuais óbvios:
-- Comando que claramente não existe
-- Número claramente impossível
+- Comando que claramente não existe nessa ferramenta
+- Número claramente impossível (ex: "consome 3MB de RAM" para banco de dados)
 - Contradição interna entre seções
+- Import ou path de código que não existe
 
-Responda APENAS com lista numerada.
+Responda APENAS com lista numerada de problemas encontrados.
 Se não encontrar problemas, responda exatamente: SEM PROBLEMAS
 
 ARTIGO:
-{artigo[:3000]}
+{artigo[:4000]}
 """
         resp = self.llm.generate(
             model=self.model,
             prompt=prompt,
-            options={"temperature": self.temp}
+            options={"temperature": self.temp},
         )
         text = resp.response.strip()
         if "SEM PROBLEMAS" in text.upper():

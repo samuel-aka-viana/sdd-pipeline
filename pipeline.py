@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from tools.search_tool import SearchTool
+from tools.scraper_tool import ScraperTool
 from memory.memory_store import MemoryStore
 from skills.researcher import ResearcherSkill
 from skills.analyst import AnalystSkill
@@ -22,9 +23,15 @@ class SDDPipeline:
         self.spec      = yaml.safe_load(Path(spec_path).read_text())
         self.log       = PipelineLogger()
         self.memory    = MemoryStore()
-        search_tool    = SearchTool()
 
-        self.researcher = ResearcherSkill(search_tool, self.memory, spec_path)
+        scraper_conf = self.spec.get("research", {}).get("scraper", {})
+        search_tool  = SearchTool()
+        scraper_tool = ScraperTool(
+            max_chars=scraper_conf.get("max_chars_per_page", 4000),
+            timeout=scraper_conf.get("timeout_seconds", 15),
+        )
+
+        self.researcher = ResearcherSkill(search_tool, scraper_tool, self.memory, spec_path)
         self.analyst    = AnalystSkill(self.memory, spec_path)
         self.writer     = WriterSkill(self.memory, spec_path)
         self.critic     = CriticSkill(self.memory, spec_path)
@@ -37,7 +44,7 @@ class SDDPipeline:
         ferramentas: str,
         contexto:    str,
         foco:        str = "comparação geral",
-        questoes:    list[str] | None = None
+        questoes:    list[str] | None = None,
     ) -> str:
 
         questoes = questoes or []
@@ -57,7 +64,6 @@ class SDDPipeline:
             "contexto":    contexto,
             "foco":        foco,
             "questoes":    questoes,
-            "ts":          datetime.now().isoformat()
         })
 
         self.log.section(1, 3, "Pesquisando")
@@ -71,7 +77,7 @@ class SDDPipeline:
                     tool=tool,
                     alternative=alt,
                     foco=foco,
-                    questoes=questoes
+                    questoes=questoes,
                 )
             research_parts.append(f"# {tool}\n{data}")
 
@@ -86,7 +92,7 @@ class SDDPipeline:
                 ferramentas=ferramentas,
                 contexto=contexto,
                 foco=foco,
-                questoes=questoes
+                questoes=questoes,
             )
 
         self.memory.set("analysis", analysis)
@@ -98,7 +104,7 @@ class SDDPipeline:
         if lessons:
             lesson_line = next(
                 (l for l in lessons.splitlines() if l.startswith("-")),
-                lessons.splitlines()[0]
+                lessons.splitlines()[0],
             )
             self.log.memory_hit(lesson_line)
 
@@ -117,37 +123,44 @@ class SDDPipeline:
                     contexto=contexto,
                     foco=foco,
                     questoes=questoes,
-                    correction_instructions=correction_instructions
+                    correction_instructions=correction_instructions,
                 )
 
             with self.log.task("Validando contra spec"):
                 evaluation = self.critic.evaluate(article, ferramentas)
 
-            self.log.validation_report(
-                self.critic.validator.validate(article)
-            )
-
             if evaluation["approved"]:
+                self.log.critic_passed(
+                    evaluation.get("layer", ""),
+                    evaluation.get("warnings", []),
+                )
                 self.memory.log_event("article_approved", {
                     "iteration":   iteration,
                     "ferramentas": ferramentas,
-                    "foco":        foco
+                    "foco":        foco,
                 })
                 if iteration > 1:
+                    problems = [
+                        l.strip()
+                        for l in correction_instructions.splitlines()
+                        if l.strip() and l.strip()[0].isdigit()
+                    ]
+                    pattern = "; ".join(problems)[:150] if problems else correction_instructions[:150]
                     self.memory.learn(
-                        problem_pattern=correction_instructions[:100],
+                        problem_pattern=pattern,
                         solution=f"Resolvido em {iteration} iterações",
-                        context=f"{ferramentas} | foco: {foco}"
+                        context=f"{ferramentas} | foco: {foco}",
                     )
                 break
 
+            self.log.critic_failed(evaluation.get("problems", []))
             correction_instructions = evaluation.get("correction_prompt", "")
 
             if iteration == self.MAX_ITERATIONS:
                 self.log.error("Máximo de iterações atingido. Salvando melhor versão.")
                 self.memory.log_event("max_iterations_reached", {
                     "ferramentas": ferramentas,
-                    "problems":    evaluation.get("problems", [])
+                    "problems":    evaluation.get("problems", []),
                 })
 
         slug = ferramentas.lower().replace(" ", "-").replace(",", "")[:40]
@@ -156,14 +169,13 @@ class SDDPipeline:
 
         Path(path).write_text(article, encoding="utf-8")
 
-        events  = self.memory.get_events(limit=20)
         metrics = {
             "ferramentas": ferramentas,
             "foco":        foco,
             "perguntas":   len(questoes),
-            "iterações":   len([e for e in events if e["event"] == "article_written"]),
+            "iterações":   iteration,
             "aprovado":    evaluation["approved"],
-            "output":      path
+            "output":      path,
         }
         self.log.metrics(metrics)
         self.log.saved(path)
@@ -187,7 +199,7 @@ class SDDPipeline:
             "ferramentas": ferramentas,
             "foco":        foco,
             "output":      path,
-            "approved":    approved
+            "approved":    approved,
         }
         with open("output/metrics.json", "a", encoding="utf-8") as f:
             json.dump(entry, f, ensure_ascii=False)

@@ -5,20 +5,18 @@ from pathlib import Path
 
 class MemoryStore:
     """
-    Memória simples em 3 camadas.
-    Sem embeddings no início — JSON puro é suficiente para começar.
-
-    working   → estado da sessão atual (RAM, some ao terminar)
-    episodic  → log do que aconteceu (arquivo JSON persistente)
-    procedural → receitas de correção que funcionaram (arquivo JSON persistente)
+    Memória simples em 3 camadas — JSON puro.
+    working    → estado da sessão atual (RAM, some ao terminar)
+    episodic   → log do que aconteceu (persistente, com rotação)
+    procedural → receitas de correção que funcionaram (persistente)
     """
+
+    MAX_EPISODIC = 500
 
     def __init__(self, path: str = ".memory"):
         self.base = Path(path)
         self.base.mkdir(exist_ok=True)
-
         self._working: dict = {}
-
         self._episodic   = self._load("episodic.json")
         self._procedural = self._load("procedural.json")
 
@@ -35,8 +33,10 @@ class MemoryStore:
         self._episodic.append({
             "ts": time.time(),
             "event": event,
-            "details": details
+            "details": details,
         })
+        if len(self._episodic) > self.MAX_EPISODIC:
+            self._episodic = self._episodic[-self.MAX_EPISODIC:]
         self._save("episodic.json", self._episodic)
 
     def get_events(self, event_type: str = None, limit: int = 10) -> list:
@@ -47,16 +47,20 @@ class MemoryStore:
 
 
     def learn(self, problem_pattern: str, solution: str, context: str = ""):
-        """
-        Salva uma receita de correção que funcionou.
-        Ex: problema 'placeholder em requisitos' → solução 'buscar requirements page'
-        """
+        # evita duplicata exata
+        for p in self._procedural:
+            if p["pattern"] == problem_pattern:
+                p["uses"] += 1
+                p["ts"] = time.time()
+                self._save("procedural.json", self._procedural)
+                return
+
         self._procedural.append({
             "pattern":  problem_pattern,
             "solution": solution,
             "context":  context,
-            "uses":     0,
-            "ts":       time.time()
+            "uses":     1,
+            "ts":       time.time(),
         })
         self._save("procedural.json", self._procedural)
 
@@ -70,24 +74,28 @@ class MemoryStore:
         return None
 
     def get_lessons_for_prompt(self, limit: int = 3) -> str:
-        """
-        Retorna lições aprendidas formatadas para injetar no prompt.
-        Modelos locais se beneficiam de exemplos concretos no contexto.
-        """
-        recent = self._procedural[-limit:]
-        if not recent:
+        if not self._procedural:
             return ""
-
+        ranked = sorted(
+            self._procedural,
+            key=lambda p: (p["uses"], p["ts"]),
+            reverse=True,
+        )
+        top = ranked[:limit]
         lines = ["Lições de execuções anteriores (aplique estas correções):"]
-        for p in recent:
+        for p in top:
             lines.append(f"- Problema: {p['pattern']}")
             lines.append(f"  Solução:  {p['solution']}")
         return "\n".join(lines)
 
-
     def _load(self, filename: str) -> list:
         p = self.base / filename
-        return json.loads(p.read_text()) if p.exists() else []
+        if not p.exists():
+            return []
+        try:
+            return json.loads(p.read_text())
+        except json.JSONDecodeError:
+            return []
 
     def _save(self, filename: str, data):
         (self.base / filename).write_text(

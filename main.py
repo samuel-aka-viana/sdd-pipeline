@@ -13,7 +13,7 @@ console = Console()
 SECOES_PADRAO = [
     "tldr", "o_que_e", "requisitos", "instalacao",
     "configuracao", "exemplo_pratico", "armadilhas",
-    "otimizacoes", "referencias"
+    "otimizacoes", "conclusao", "referencias",
 ]
 
 FOCOS_DISPONIVEIS = [
@@ -35,7 +35,7 @@ def perguntar_foco() -> str:
 
     escolha = Prompt.ask(
         "\n[bold]Foco da pesquisa[/bold] [dim](número ou texto livre, enter para padrão)[/dim]",
-        default=""
+        default="",
     )
 
     if not escolha.strip():
@@ -54,9 +54,9 @@ def perguntar_questoes() -> list[str]:
     console.print("[dim]Seja específico — o modelo vai usar isso diretamente.")
     console.print("[dim]Enter vazio para terminar.\n")
     console.print("[dim]Exemplos:[/dim]")
-    console.print("[dim]  • como configurar modo rootless?[/dim]")
-    console.print("[dim]  • docker-compose funciona sem mudanças?[/dim]")
-    console.print("[dim]  • qual tem menor uso de RAM em idle?[/dim]\n")
+    console.print("[dim]  → como configurar modo rootless?[/dim]")
+    console.print("[dim]  → docker-compose funciona sem mudanças?[/dim]")
+    console.print("[dim]  → qual tem menor uso de RAM em idle?[/dim]\n")
 
     items = []
     i = 1
@@ -94,11 +94,11 @@ def exibir_resumo(ferramentas, contexto, foco, questoes, validacoes):
     t.add_row("Foco",        f"[cyan]{foco}[/cyan]")
     t.add_row(
         "O artigo deve\nresponder",
-        "\n".join(f"• {q}" for q in questoes) if questoes else "[dim]sem perguntas adicionais[/dim]"
+        "\n".join(f"→ {q}" for q in questoes) if questoes else "[dim]sem perguntas adicionais[/dim]",
     )
     t.add_row(
         "Validações",
-        "\n".join(f"• {v}" for v in validacoes) if validacoes else "[dim]nenhuma[/dim]"
+        "\n".join(f"☐ {v}" for v in validacoes) if validacoes else "[dim]nenhuma[/dim]",
     )
 
     console.print()
@@ -112,7 +112,7 @@ def checklist_pos_execucao(validacoes: list[str], output_path: str):
 
     console.print(Panel.fit(
         "[bold white]Checklist de validação manual[/bold white]",
-        border_style="yellow"
+        border_style="yellow",
     ))
     console.print(f"[dim]Artigo: {output_path}[/dim]\n")
 
@@ -126,7 +126,7 @@ def checklist_pos_execucao(validacoes: list[str], output_path: str):
             console.print("  [red]✗[/red]\n")
 
     total = len(validacoes)
-    cor   = "green" if aprovados == total else "yellow" if aprovados > 0 else "red"
+    cor = "green" if aprovados == total else "yellow" if aprovados > 0 else "red"
     console.print(f"[{cor}]Resultado: {aprovados}/{total} critérios atendidos[/{cor}]\n")
 
 
@@ -135,15 +135,19 @@ def main():
     console.print(Panel.fit(
         "[bold cyan]SDD Tech Writer[/bold cyan]\n"
         "[dim]Geração de artigos técnicos com LLM local[/dim]",
-        border_style="cyan"
+        border_style="cyan",
     ))
     console.print()
 
-    ferramentas = Prompt.ask("[bold]Ferramentas[/bold] [dim](ex: podman e docker)[/dim]")
-    contexto    = Prompt.ask("[bold]Contexto[/bold]    [dim](ex: ambiente de dev local no Linux)[/dim]")
-    foco        = perguntar_foco()
-    questoes    = perguntar_questoes()
-    validacoes  = coletar_validacoes()
+    try:
+        ferramentas = Prompt.ask("[bold]Ferramentas[/bold] [dim](ex: podman e docker)[/dim]")
+        contexto    = Prompt.ask("[bold]Contexto[/bold]    [dim](ex: ambiente de dev local no Linux)[/dim]")
+        foco        = perguntar_foco()
+        questoes    = perguntar_questoes()
+        validacoes  = coletar_validacoes()
+    except KeyboardInterrupt:
+        console.print("\n[dim]Cancelado.[/dim]")
+        sys.exit(0)
 
     exibir_resumo(ferramentas, contexto, foco, questoes, validacoes)
 
@@ -156,7 +160,7 @@ def main():
         ferramentas=ferramentas,
         contexto=contexto,
         foco=foco,
-        questoes=questoes
+        questoes=questoes,
     )
 
     checklist_pos_execucao(validacoes, output_path)
