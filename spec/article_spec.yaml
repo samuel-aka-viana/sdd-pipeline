@@ -96,11 +96,23 @@ analysis:
 models:
   researcher: "glm-5.1:cloud"
   analyst:    "glm-5.1:cloud"
-  writer:     "glm-5.1:cloud"
-  critic:     "glm-5.1:cloud"
+  writer:     "glm-4.7-flash:q4_K_M"
+  critic:     "glm-4.7-flash:q4_K_M"
+
+#models: para rodar em batatas
+#  researcher: "gemma4:e2b"
+#  analyst:    "gemma4:e2b"
+#  writer:     "gemma4:e4b"
+#  critic:     "gemma4:e2b"
 
 ollama:
   base_url: "http://localhost:11434"
+  timeout:
+    researcher: 300
+    analyst:    300
+    writer:     3200
+    critic:    3200
+    default:   600
   temperature:
     researcher: 0.1
     analyst:    0.1

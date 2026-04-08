@@ -134,7 +134,9 @@ class ResearcherSkill:
         self.spec = yaml.safe_load(Path(spec_path).read_text())
         self.model = self.spec["models"]["researcher"]
         self.temp = self.spec["ollama"]["temperature"]["researcher"]
-        self.llm = Client(host=self.spec["ollama"]["base_url"])
+        timeouts = self.spec["ollama"].get("timeout", {})
+        self.timeout = timeouts.get("researcher", timeouts.get("default", 300))
+        self.llm = Client(host=self.spec["ollama"]["base_url"], timeout=self.timeout)
 
     # ------------------------------------------------------------------
     # público

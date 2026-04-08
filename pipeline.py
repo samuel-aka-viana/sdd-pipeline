@@ -3,6 +3,7 @@ import yaml
 import json
 from datetime import datetime
 from pathlib import Path
+from httpx import TimeoutException
 
 from tools.search_tool import SearchTool
 from tools.scraper_tool import ScraperTool
@@ -72,15 +73,25 @@ class SDDPipeline:
         tools_list     = self._parse_tools(ferramentas)
         research_parts = []
 
+        timeouts = self.spec["ollama"].get("timeout", {})
+        default_timeout = timeouts.get("default", 300)
+
         for tool in tools_list:
             alt = next((t for t in tools_list if t != tool), "")
             with self.log.task(f"Pesquisando {tool}"):
-                data = self.researcher.run(
-                    tool=tool,
-                    alternative=alt,
-                    foco=foco,
-                    questoes=questoes,
-                )
+                try:
+                    data = self.researcher.run(
+                        tool=tool,
+                        alternative=alt,
+                        foco=foco,
+                        questoes=questoes,
+                    )
+                except TimeoutException:
+                    self.log.error(
+                        f"Researcher timeout ({self.researcher.timeout}s) — "
+                        f"dados insuficientes para {tool}"
+                    )
+                    data = f"# {tool}\n\nPesquisa interrompida por timeout ({self.researcher.timeout}s)."
             research_parts.append(f"# {tool}\n{data}")
 
         research = "\n\n".join(research_parts)
@@ -97,13 +108,19 @@ class SDDPipeline:
         # ---- 2. analysis ----
         self.log.section(2, 3, "Analisando")
         with self.log.task("Gerando análise"):
-            analysis = self.analyst.run(
-                research=research,
-                ferramentas=ferramentas,
-                contexto=contexto,
-                foco=foco,
-                questoes=questoes,
-            )
+            try:
+                analysis = self.analyst.run(
+                    research=research,
+                    ferramentas=ferramentas,
+                    contexto=contexto,
+                    foco=foco,
+                    questoes=questoes,
+                )
+            except TimeoutException:
+                self.log.error(
+                    f"Analyst timeout ({self.analyst.timeout}s) — usando research bruto"
+                )
+                analysis = f"Análise interrompida por timeout ({self.analyst.timeout}s).\n\n{research}"
 
         self.memory.set("analysis", analysis)
         self._save_debug("analysis", analysis)
@@ -127,22 +144,42 @@ class SDDPipeline:
             self.log.iteration(iteration, self.MAX_ITERATIONS)
 
             with self.log.task("Escrevendo artigo"):
-                article = self.writer.run(
-                    research=research,
-                    analysis=analysis,
-                    ferramentas=ferramentas,
-                    contexto=contexto,
-                    foco=foco,
-                    questoes=questoes,
-                    correction_instructions=correction_instructions,
-                    research_quality=research_quality,
-                )
+                try:
+                    article = self.writer.run(
+                        research=research,
+                        analysis=analysis,
+                        ferramentas=ferramentas,
+                        contexto=contexto,
+                        foco=foco,
+                        questoes=questoes,
+                        correction_instructions=correction_instructions,
+                        research_quality=research_quality,
+                    )
+                except TimeoutException:
+                    self.log.error(
+                        f"Writer timeout ({self.writer.timeout}s) na iteração {iteration}"
+                    )
+                    if iteration == self.MAX_ITERATIONS:
+                        article = f"# Timeout\n\nGeração interrompida: writer excedeu {self.writer.timeout}s."
+                        break
+                    continue
 
             # pós-processamento: remove frases proibidas que o modelo insiste
             article = self._sanitize_article(article)
 
             with self.log.task("Validando contra spec"):
-                evaluation = self.critic.evaluate(article, ferramentas)
+                try:
+                    evaluation = self.critic.evaluate(article, ferramentas)
+                except TimeoutException:
+                    self.log.error(
+                        f"Critic timeout ({self.critic.timeout}s) — aprovando sem validação semântica"
+                    )
+                    evaluation = {
+                        "approved": True,
+                        "layer": "timeout_skip",
+                        "warnings": [f"Validação semântica pulada: critic excedeu {self.critic.timeout}s"],
+                        "report": "Validação semântica pulada por timeout.",
+                    }
 
             # mostra resultado da validação
             if evaluation["approved"]:

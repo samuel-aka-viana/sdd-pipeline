@@ -10,7 +10,9 @@ class WriterSkill:
         self.spec   = yaml.safe_load(Path(spec_path).read_text())
         self.model  = self.spec["models"]["writer"]
         self.temp   = self.spec["ollama"]["temperature"]["writer"]
-        self.llm    = Client(host=self.spec["ollama"]["base_url"])
+        timeouts = self.spec["ollama"].get("timeout", {})
+        self.timeout = timeouts.get("writer", timeouts.get("default", 300))
+        self.llm    = Client(host=self.spec["ollama"]["base_url"], timeout=self.timeout)
         ctx = self.spec["ollama"].get("context_length", {})
         self.ctx_len = ctx.get("writer", ctx.get("default", 8192))
 

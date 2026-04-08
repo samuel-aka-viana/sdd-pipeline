@@ -11,7 +11,9 @@ class CriticSkill:
         self.spec      = yaml.safe_load(Path(spec_path).read_text())
         self.model     = self.spec["models"]["critic"]
         self.temp      = self.spec["ollama"]["temperature"]["critic"]
-        self.llm       = Client(host=self.spec["ollama"]["base_url"])
+        timeouts = self.spec["ollama"].get("timeout", {})
+        self.timeout = timeouts.get("critic", timeouts.get("default", 300))
+        self.llm       = Client(host=self.spec["ollama"]["base_url"], timeout=self.timeout)
         self.validator = SpecValidator(spec_path)
 
     def evaluate(self, artigo: str, ferramentas: str) -> dict:

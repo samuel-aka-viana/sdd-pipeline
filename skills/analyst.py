@@ -10,7 +10,9 @@ class AnalystSkill:
         self.spec   = yaml.safe_load(Path(spec_path).read_text())
         self.model  = self.spec["models"]["analyst"]
         self.temp   = self.spec["ollama"]["temperature"]["analyst"]
-        self.llm    = Client(host=self.spec["ollama"]["base_url"])
+        timeouts = self.spec["ollama"].get("timeout", {})
+        self.timeout = timeouts.get("analyst", timeouts.get("default", 300))
+        self.llm    = Client(host=self.spec["ollama"]["base_url"], timeout=self.timeout)
 
     def run(self, research, ferramentas, contexto,
             foco="comparação geral", questoes=None):
