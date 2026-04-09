@@ -93,6 +93,11 @@ analysis:
     - contras
     - otimizacoes
 
+pipeline:
+  # timeout global da execução inteira (segundos).
+  # null/descomente para desabilitar limite total.
+  timeout_total_seconds: 900
+
 # ── Modelos ──────────────────────────────────────────────────────
 # Fonte principal: .env (LLM_MODEL_RESEARCHER/ANALYST/WRITER/CRITIC)
 # Este bloco fica como fallback caso as variáveis não existam.

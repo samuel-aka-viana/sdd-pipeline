@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from httpx import TimeoutException
+from time import monotonic
 
 from tools.search_tool import SearchTool
 from tools.scraper_tool import ScraperTool
@@ -24,6 +25,13 @@ class SDDPipeline:
         self.spec      = yaml.safe_load(Path(spec_path).read_text())
         self.log       = PipelineLogger()
         self.memory    = MemoryStore()
+        pipeline_conf = self.spec.get("pipeline", {})
+        raw_timeout_total = pipeline_conf.get("timeout_total_seconds")
+        self.timeout_total_seconds = (
+            int(raw_timeout_total)
+            if raw_timeout_total not in (None, "")
+            else None
+        )
 
         # lê config do scraper do spec
         scraper_conf = self.spec.get("research", {}).get("scraper", {})
@@ -50,6 +58,10 @@ class SDDPipeline:
     ) -> str:
 
         questoes = questoes or []
+        started_at = monotonic()
+        article = ""
+        iteration = 0
+        evaluation = {"approved": False, "problems": [], "correction_prompt": ""}
 
         self.log.pipeline_start(ferramentas, contexto)
         self.log.console.print(
@@ -74,6 +86,10 @@ class SDDPipeline:
         research_parts = []
 
         for tool in tools_list:
+            self._enforce_global_timeout(
+                started_at,
+                stage=f"pesquisa ({tool})",
+            )
             alt = next((t for t in tools_list if t != tool), "")
             with self.log.task(f"Pesquisando {tool}"):
                 try:
@@ -104,6 +120,10 @@ class SDDPipeline:
 
         # ---- 2. analysis ----
         self.log.section(2, 3, "Analisando")
+        self._enforce_global_timeout(
+            started_at,
+            stage="análise",
+        )
         with self.log.task("Gerando análise"):
             try:
                 analysis = self.analyst.run(
@@ -134,85 +154,104 @@ class SDDPipeline:
             self.log.memory_hit(lesson_line)
 
         correction_instructions = ""
-        article    = ""
-        evaluation = {"approved": False, "problems": [], "correction_prompt": ""}
-
-        for iteration in range(1, self.MAX_ITERATIONS + 1):
-            self.log.iteration(iteration, self.MAX_ITERATIONS)
-
-            with self.log.task("Escrevendo artigo"):
-                try:
-                    article = self.writer.run(
-                        research=research,
-                        analysis=analysis,
-                        ferramentas=ferramentas,
-                        contexto=contexto,
-                        foco=foco,
-                        questoes=questoes,
-                        correction_instructions=correction_instructions,
-                        research_quality=research_quality,
-                    )
-                except TimeoutException:
-                    self.log.error(
-                        f"Writer timeout ({self.writer.timeout}s) na iteração {iteration}"
-                    )
-                    if iteration == self.MAX_ITERATIONS:
-                        article = f"# Timeout\n\nGeração interrompida: writer excedeu {self.writer.timeout}s."
-                        break
-                    continue
-
-            # pós-processamento: remove frases proibidas que o modelo insiste
-            article = self._sanitize_article(article)
-
-            with self.log.task("Validando contra spec"):
-                try:
-                    evaluation = self.critic.evaluate(article, ferramentas)
-                except TimeoutException:
-                    self.log.error(
-                        f"Critic timeout ({self.critic.timeout}s) — aprovando sem validação semântica"
-                    )
-                    evaluation = {
-                        "approved": True,
-                        "layer": "timeout_skip",
-                        "warnings": [f"Validação semântica pulada: critic excedeu {self.critic.timeout}s"],
-                        "report": "Validação semântica pulada por timeout.",
-                    }
-
-            # mostra resultado da validação
-            if evaluation["approved"]:
-                self.log.critic_passed(
-                    evaluation.get("layer", ""),
-                    evaluation.get("warnings", []),
+        try:
+            for iteration in range(1, self.MAX_ITERATIONS + 1):
+                self._enforce_global_timeout(
+                    started_at,
+                    stage=f"iteração {iteration} (writer)",
                 )
-                self.memory.log_event("article_approved", {
-                    "iteration":   iteration,
-                    "ferramentas": ferramentas,
-                    "foco":        foco,
-                })
-                if iteration > 1:
-                    # extrai os problemas reais, sem o header genérico
-                    problems = [
-                        l.strip()
-                        for l in correction_instructions.splitlines()
-                        if l.strip() and l.strip()[0].isdigit()
-                    ]
-                    pattern = "; ".join(problems)[:150] if problems else correction_instructions[:150]
-                    self.memory.learn(
-                        problem_pattern=pattern,
-                        solution=f"Resolvido em {iteration} iterações",
-                        context=f"{ferramentas} | foco: {foco}",
+                self.log.iteration(iteration, self.MAX_ITERATIONS)
+
+                with self.log.task("Escrevendo artigo"):
+                    try:
+                        article = self.writer.run(
+                            research=research,
+                            analysis=analysis,
+                            ferramentas=ferramentas,
+                            contexto=contexto,
+                            foco=foco,
+                            questoes=questoes,
+                            correction_instructions=correction_instructions,
+                            research_quality=research_quality,
+                        )
+                    except TimeoutException:
+                        self.log.error(
+                            f"Writer timeout ({self.writer.timeout}s) na iteração {iteration}"
+                        )
+                        if iteration == self.MAX_ITERATIONS:
+                            article = f"# Timeout\n\nGeração interrompida: writer excedeu {self.writer.timeout}s."
+                            break
+                        continue
+
+                # pós-processamento: remove frases proibidas que o modelo insiste
+                article = self._sanitize_article(article)
+
+                self._enforce_global_timeout(
+                    started_at,
+                    stage=f"iteração {iteration} (critic)",
+                )
+                with self.log.task("Validando contra spec"):
+                    try:
+                        evaluation = self.critic.evaluate(article, ferramentas)
+                    except TimeoutException:
+                        self.log.error(
+                            f"Critic timeout ({self.critic.timeout}s) — aprovando sem validação semântica"
+                        )
+                        evaluation = {
+                            "approved": True,
+                            "layer": "timeout_skip",
+                            "warnings": [f"Validação semântica pulada: critic excedeu {self.critic.timeout}s"],
+                            "report": "Validação semântica pulada por timeout.",
+                        }
+
+                # mostra resultado da validação
+                if evaluation["approved"]:
+                    self.log.critic_passed(
+                        evaluation.get("layer", ""),
+                        evaluation.get("warnings", []),
                     )
-                break
+                    self.memory.log_event("article_approved", {
+                        "iteration":   iteration,
+                        "ferramentas": ferramentas,
+                        "foco":        foco,
+                    })
+                    if iteration > 1:
+                        # extrai os problemas reais, sem o header genérico
+                        problems = [
+                            l.strip()
+                            for l in correction_instructions.splitlines()
+                            if l.strip() and l.strip()[0].isdigit()
+                        ]
+                        pattern = "; ".join(problems)[:150] if problems else correction_instructions[:150]
+                        self.memory.learn(
+                            problem_pattern=pattern,
+                            solution=f"Resolvido em {iteration} iterações",
+                            context=f"{ferramentas} | foco: {foco}",
+                        )
+                    break
 
-            self.log.critic_failed(evaluation.get("problems", []))
-            correction_instructions = evaluation.get("correction_prompt", "")
+                self.log.critic_failed(evaluation.get("problems", []))
+                correction_instructions = evaluation.get("correction_prompt", "")
 
-            if iteration == self.MAX_ITERATIONS:
-                self.log.error("Máximo de iterações atingido. Salvando melhor versão.")
-                self.memory.log_event("max_iterations_reached", {
-                    "ferramentas": ferramentas,
-                    "problems":    evaluation.get("problems", []),
-                })
+                if iteration == self.MAX_ITERATIONS:
+                    self.log.error("Máximo de iterações atingido. Salvando melhor versão.")
+                    self.memory.log_event("max_iterations_reached", {
+                        "ferramentas": ferramentas,
+                        "problems":    evaluation.get("problems", []),
+                    })
+        except TimeoutException as exc:
+            self.log.error(str(exc))
+            self.memory.log_event("pipeline_timeout_total", {
+                "ferramentas": ferramentas,
+                "foco": foco,
+                "timeout_total_seconds": self.timeout_total_seconds,
+                "elapsed_seconds": round(monotonic() - started_at, 2),
+            })
+            if not article:
+                article = (
+                    "# Timeout\n\n"
+                    f"Pipeline excedeu timeout total de {self.timeout_total_seconds}s."
+                )
 
         # ---- save ----
         slug = ferramentas.lower().replace(" ", "-").replace(",", "")[:40]
@@ -313,3 +352,14 @@ class SDDPipeline:
         with open("output/metrics.json", "a", encoding="utf-8") as f:
             json.dump(entry, f, ensure_ascii=False)
             f.write("\n")
+
+    def _enforce_global_timeout(self, started_at: float, stage: str):
+        if not self.timeout_total_seconds:
+            return
+        elapsed = monotonic() - started_at
+        if elapsed <= self.timeout_total_seconds:
+            return
+        raise TimeoutException(
+            "Pipeline timeout total excedido "
+            f"({elapsed:.1f}s > {self.timeout_total_seconds}s) durante {stage}"
+        )

@@ -141,6 +141,7 @@ O CLI pede:
   - regras de qualidade
   - seções obrigatórias
   - timeout/temperature/context_length
+  - timeout global da execução (`pipeline.timeout_total_seconds`)
   - fallback de provider/modelos
 
 ## Limitações conhecidas
