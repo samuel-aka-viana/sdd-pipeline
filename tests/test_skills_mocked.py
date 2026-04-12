@@ -51,7 +51,7 @@ class TestResearcherSkillMocked:
         
         # Assert
         assert mock_instance.generate.called
-        assert mock_instance.model_for_role.called_with("researcher")
+        assert mock_instance.model_for_role.call_args[0][0] == "researcher"
         assert isinstance(result, str)
         assert len(result) > 0
 

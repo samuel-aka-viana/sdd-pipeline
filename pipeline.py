@@ -1,6 +1,7 @@
 import os
 import yaml
 import json
+import jsonschema
 from datetime import datetime
 from pathlib import Path
 from httpx import TimeoutException
@@ -24,6 +25,18 @@ class SDDPipeline:
         self.spec_path = spec_path
         self.spec      = yaml.safe_load(Path(spec_path).read_text())
         self.log       = PipelineLogger()
+        
+        # Load and validate spec against schema
+        with open("spec/schema.json") as f:
+            schema = json.load(f)
+        
+        try:
+            jsonschema.validate(self.spec, schema)
+            self.log.console.print(f"[green]✓ Spec version {self.spec.get('spec_version', 'unknown')} validated against schema[/green]")
+        except jsonschema.ValidationError as e:
+            self.log.error(f"Spec validation failed: {e.message}")
+            raise ValueError(f"Spec validation failed: {e.message}")
+        
         self.memory    = MemoryStore()
         pipeline_conf = self.spec.get("pipeline", {})
         raw_timeout_total = pipeline_conf.get("timeout_total_seconds")

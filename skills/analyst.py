@@ -1,7 +1,10 @@
 import yaml
+import logging
 from pathlib import Path
 
 from llm import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 class AnalystSkill:
@@ -21,14 +24,18 @@ class AnalystSkill:
             foco="comparação geral", questoes=None):
 
         questoes = questoes or []
+        logger.debug(f"Starting analysis for: {ferramentas}, contexto: {contexto}, foco: {foco}")
+        
         tools = [t.strip() for t in ferramentas.lower().replace(" e ", ",").split(",") if t.strip()]
         is_single = len(tools) == 1
         is_integration = foco == "integração"
+        logger.debug(f"Parsed tools: {tools}, is_single: {is_single}, is_integration: {is_integration}")
 
         questoes_block = ""
         if questoes:
             lista = "\n".join(f"- {q}" for q in questoes)
             questoes_block = f"\nA análise deve fornecer dados para responder:\n{lista}\n"
+            logger.debug(f"Added {len(questoes)} custom analysis questions")
 
         if is_single:
             table_block = self._single_tool_template(tools[0], foco)
@@ -36,6 +43,7 @@ class AnalystSkill:
             table_block = self._integration_template(tools, foco)
         else:
             table_block = self._comparison_template(tools, foco)
+        logger.debug(f"Selected template: {'single' if is_single else ('integration' if is_integration else 'comparison')}")
 
         prompt = f"""Você é um analista técnico. Analise os dados de pesquisa abaixo.
 
@@ -70,6 +78,7 @@ REGRAS CRÍTICAS:
 ## RECOMENDAÇÃO
 [1 parágrafo: recomendação para "{contexto}" considerando "{foco}"]
 """
+        logger.debug(f"Calling LLM analyst (timeout: {self.timeout}s, temp: {self.temp})")
         resp = self.llm.generate(
             role="analyst",
             model=self.model,
@@ -77,6 +86,7 @@ REGRAS CRÍTICAS:
             temperature=self.temp,
             timeout=self.timeout,
         )
+        logger.debug(f"LLM response received: {len(resp.response)} chars")
 
         self.memory.log_event("analysis_done", {
             "ferramentas": ferramentas,

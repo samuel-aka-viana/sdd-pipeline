@@ -1,3 +1,23 @@
+# ──────────────────────────────────────────────────────────────
+# SDD Article Specification - Semantic Versioning
+# 
+# This specification uses semantic versioning (major.minor.patch)
+# to track changes and ensure consistency across tool versions.
+# See spec_changelog below for the complete change history.
+# ──────────────────────────────────────────────────────────────
+
+spec_version: "1.0.0"
+
+spec_changelog:
+  "1.0.0":
+    date: "2026-04-08"
+    changes:
+      - "Initial release: 10 required sections"
+      - "11 quality rules (no_placeholders, min_references, etc.)"
+      - "Research with 6 templated queries"
+      - "Analysis with 5 required fields"
+      - "LLM provider abstraction"
+
 article:
   required_sections:
     - tldr
@@ -97,6 +117,7 @@ pipeline:
   # timeout global da execução inteira (segundos).
   # null/descomente para desabilitar limite total.
   timeout_total_seconds: 900
+  max_iterations: 3
 
 # ── Modelos ──────────────────────────────────────────────────────
 # Fonte principal: .env (LLM_MODEL_RESEARCHER/ANALYST/WRITER/CRITIC)
@@ -104,10 +125,10 @@ pipeline:
 
 # ── Opção 1: OpenRouter free (ATUAL — descomentado) ─────────────
 models:
-  researcher: "z-ai/glm-4.5-air:free"
-  analyst:    "z-ai/glm-4.5-air:free"
-  writer:     "z-ai/glm-4.5-air:free"
-  critic:     "z-ai/glm-4.5-air:free"
+  researcher: "nousresearch/hermes-3-llama-3.1-405b:free"
+  analyst:    "nousresearch/hermes-3-llama-3.1-405b:free"
+  writer:     "nousresearch/hermes-3-llama-3.1-405b:free"
+  critic:     "nousresearch/hermes-3-llama-3.1-405b:free"
 
 # ── Opção 2: Ollama local ───────────────────────────────────────
 # 3a) 8 GB RAM, CPU only (descomente para usar)

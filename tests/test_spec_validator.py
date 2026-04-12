@@ -2,6 +2,8 @@ import pytest
 from validators.spec_validator import SpecValidator
 
 
+@pytest.mark.deterministic
+@pytest.mark.spec_driven
 class TestSpecValidatorSections:
     """Test required_sections validation"""
 

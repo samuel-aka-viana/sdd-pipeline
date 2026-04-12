@@ -1,7 +1,10 @@
 import yaml
+import logging
 from pathlib import Path
 
 from llm import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 class WriterSkill:
@@ -24,10 +27,15 @@ class WriterSkill:
             correction_instructions="", research_quality="ok"):
 
         questoes = questoes or []
+        logger.debug(f"Starting writer: ferramentas={ferramentas}, foco={foco}, quality={research_quality}")
+        
         lessons = self.memory.get_lessons_for_prompt()
+        if lessons:
+            logger.debug(f"Using memory lessons for writer")
 
         correction_block = ""
         if correction_instructions:
+            logger.debug(f"Applying correction instructions: {len(correction_instructions)} chars")
             correction_block = f"""
 ############################################################
 # CORREÇÕES OBRIGATÓRIAS — O ARTIGO FOI REPROVADO
@@ -52,11 +60,13 @@ O artigo DEVE responder explicitamente estas perguntas:
 {lista}
 Cada resposta deve aparecer claramente no texto.
 """
+            logger.debug(f"Added {len(questoes)} questions to writer prompt")
 
         lessons_block = f"\n{lessons}\n" if lessons else ""
 
         research_warning = ""
         if research_quality == "weak":
+            logger.warning(f"Research quality is WEAK - warning writer to not invent data")
             research_warning = """
 ############################################################
 # AVISO: OS DADOS DE PESQUISA SÃO INSUFICIENTES
