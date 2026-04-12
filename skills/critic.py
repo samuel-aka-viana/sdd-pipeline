@@ -70,6 +70,7 @@ class CriticSkill:
 
         logger.debug(f"Article PASSED deterministic layer. Starting semantic validation...")
         semantic_issues = self.semantic_check(artigo, ferramentas)
+        semantic_issues = self.filter_known_false_positives(semantic_issues)
 
         if semantic_issues:
             logger.info(f"Article REJECTED by semantic layer: {len(semantic_issues)} issues found")
@@ -109,6 +110,9 @@ Formato obrigatório de resposta:
 Regras:
 - Só reporte se houver TRECHO literal presente no ARTIGO.
 - Se não houver evidência textual, NÃO reporte.
+- NÃO use suposição de "ano atual" para invalidar links/datas.
+- NÃO critique datas futuras ou anos como 2026/2027 por si só.
+- Ignore qualquer limitação de conhecimento temporal do modelo.
 Se não encontrar problemas, responda exatamente: SEM PROBLEMAS
 
 ARTIGO:
@@ -125,6 +129,24 @@ ARTIGO:
         if "SEM PROBLEMAS" in text.upper():
             return []
         return self.extract_evidence_based_issues(text, artigo[:4000])
+
+    def filter_known_false_positives(self, issues: list[str]) -> list[str]:
+        filtered_issues = []
+        temporal_false_positive_markers = (
+            "ano atual",
+            "já que o ano atual",
+            "é 2023",
+            "impossível, já que o ano atual",
+            "data do link",
+            "datas futuras",
+            "conhecimento temporal",
+        )
+        for issue in issues:
+            normalized_issue = (issue or "").lower()
+            if any(marker in normalized_issue for marker in temporal_false_positive_markers):
+                continue
+            filtered_issues.append(issue)
+        return filtered_issues
 
     def extract_evidence_based_issues(self, critic_output: str, article_excerpt: str) -> list[str]:
         issues = []

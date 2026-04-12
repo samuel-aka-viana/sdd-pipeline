@@ -91,6 +91,12 @@ research:
     - "{tool} vs {alternative} comparison"
     - "{tool} getting started tutorial"
 
+  search_cache:
+    enabled: true
+    ttl_seconds: 86400
+    results_per_query: 8
+    path: ".memory/search_cache.json"
+
   scraper:
     max_chars_per_page: 4000
     max_scrapes_per_tool: 10
@@ -120,6 +126,21 @@ research:
       - "slashdot.org"
       - "scribd.com"
       - "udemy.com"
+      - "readmedium.com"
+      - "github-wiki-see.page"
+      - "explore.market.dev"
+      - "explaintopic.com"
+      - "news.lavx.hu"
+      - "news.smol.ai"
+      - "cccok.cn"
+      - "toolhalla.ai"
+      - "arsturn.com"
+      - "vmme.org"
+      - "techbyjz.blog"
+      - "markaicode.com"
+      - "fastlaunchapi.dev"
+      - "codezup.com"
+      - "johal.in"
   source_guardrails:
     min_score_keep: 3
     max_results_per_query: 5
@@ -136,8 +157,9 @@ pipeline:
   # timeout global da execução inteira (segundos).
   # null/descomente para desabilitar limite total.
   timeout_total_seconds: 1800
-  max_iterations: 5
+  max_iterations: 3
   max_stagnant_iterations: 2
+  max_research_enrichments: 1
 
 # ── Modelos ──────────────────────────────────────────────────────
 # Fonte principal: .env (LLM_MODEL_RESEARCHER/ANALYST/WRITER/CRITIC)

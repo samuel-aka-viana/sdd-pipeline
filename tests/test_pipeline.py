@@ -30,10 +30,10 @@ class TestPipelineRetryLogic:
         assert hasattr(SDDPipeline, 'MAX_ITERATIONS')
         assert isinstance(SDDPipeline.MAX_ITERATIONS, int)
 
-    def test_pipeline_max_iterations_is_5(self):
-        """Pipeline should retry up to 5 iterations"""
+    def test_pipeline_max_iterations_is_3(self):
+        """Pipeline should retry up to 3 iterations"""
         from pipeline import SDDPipeline
-        assert SDDPipeline.MAX_ITERATIONS == 5
+        assert SDDPipeline.MAX_ITERATIONS == 3
 
     def test_max_iterations_at_least_2(self):
         """Pipeline should allow at least 2 iterations (initial + 1 retry)"""

@@ -3,6 +3,12 @@
 Curadoria focada em **benchmark e comparação técnica**.
 Cada exemplo tem versão **leigo** e **técnica**.
 
+Regra global anti-ruído para todas as perguntas:
+- use termos curtos e técnicos (evite linguagem conversacional longa)
+- peça métrica/comando/evidência sempre que possível
+- prefira "latência p95", "throughput", "RAM/CPU", "comando exato"
+- evite perguntas vagas como "qual é melhor?" sem contexto
+
 ---
 
 ## MiniStack
@@ -15,7 +21,7 @@ Ferramentas: ministack
 Contexto:    quero subir um ambiente local simples para testar aplicações
 Foco:        1 (comparação geral)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   o que o ministack resolve na prática?
   quais são os requisitos mínimos de máquina?
   qual o passo a passo mais simples para instalar?
@@ -34,7 +40,7 @@ Ferramentas: ministack
 Contexto:    ambiente de desenvolvimento local para times com Docker e CI/CD
 Foco:        5 (integração)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   quais componentes do ministack são obrigatórios e quais são opcionais?
   como integrar com docker compose sem quebrar serviços já existentes?
   como configurar logs e healthchecks para troubleshooting rápido?
@@ -59,10 +65,10 @@ Ferramentas: docker e podman
 Contexto:    quero rodar containers no Linux com baixo consumo de recursos
 Foco:        1 (comparação geral)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   qual usa menos RAM e CPU parado?
   qual inicia container mais rápido?
-  qual é mais simples para quem está começando?
+  tempo de setup inicial (passos + minutos) em ambiente padrão?
   o que muda na prática entre daemon e daemonless?
 
 Critérios:
@@ -78,7 +84,7 @@ Ferramentas: docker e podman
 Contexto:    workstations Linux e runners de CI self-hosted
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   qual latência média de start para N containers curtos?
   qual overhead por container em idle?
   como rootless afeta performance e segurança?
@@ -103,11 +109,11 @@ Ferramentas: k3s e microk8s
 Contexto:    quero Kubernetes leve para laboratório local
 Foco:        1 (comparação geral)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   qual instala mais rápido?
   qual usa menos memória em idle?
-  qual tem menos dor de cabeça para manutenção?
-  qual funciona melhor em máquina simples?
+  esforço operacional mensal (rotinas, incidentes e tuning)?
+  desempenho em hardware limitado (RAM/CPU) com carga básica?
 
 Critérios:
   compara recursos mínimos de hardware
@@ -122,7 +128,7 @@ Ferramentas: k3s e microk8s
 Contexto:    clusters pequenos para edge e ambientes de homologação
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   qual tempo de bootstrap até cluster ficar pronto?
   qual consumo de RAM/CPU em idle com addons mínimos?
   qual latência de deploy de workload simples?
@@ -147,14 +153,14 @@ Ferramentas: sqlite e duckdb
 Contexto:    quero analisar arquivos grandes CSV/Parquet no notebook
 Foco:        2 (performance / throughput)
 
-Perguntas:
-  qual consulta dados maiores mais rápido?
-  qual é mais fácil de usar no dia a dia?
-  qual funciona melhor para relatórios locais?
-  quando vale migrar de sqlite para duckdb?
+Perguntas (objetivas, anti-ruído):
+  latência p95 para agregações em datasets grandes?
+  esforço operacional diário (tarefas e tempo)
+  tempo de execução de consultas analíticas locais (p50/p95)?
+  gatilhos objetivos para migrar (volume, latência e complexidade)?
 
 Critérios:
-  inclui benchmark de leitura e agregação
+  inclui benchmark reprodutível de leitura e agregação
   usa exemplos com dados reais
   compara tempo e consumo de memória
   explica limitações de cada engine
@@ -166,7 +172,7 @@ Ferramentas: sqlite e duckdb
 Contexto:    analytics embarcado em aplicação Python
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   qual throughput em scans e joins com dados colunares?
   qual impacto de formatos (CSV vs Parquet)?
   como cada engine se comporta em concorrência local?
@@ -189,11 +195,11 @@ Ferramentas: duckdb e polars
 Contexto:    preciso decidir ferramenta para análises de dados no time
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é melhor para quem já conhece SQL?
-  qual costuma ser mais rápido em agregações grandes?
-  qual integra melhor com Python?
-  quando usar os dois juntos?
+Perguntas (objetivas, anti-ruído):
+  cenário SQL-first vs DataFrame-first: ganhos e perdas mensuráveis?
+  latência p95 e throughput em agregações grandes?
+  esforço de integração com Python (libs, compatibilidade e manutenção)?
+  arquitetura combinada: quando usar ambos no mesmo pipeline?
 
 Critérios:
   compara curva de aprendizado e performance
@@ -208,7 +214,7 @@ Ferramentas: duckdb e polars
 Contexto:    pipeline analítico em Python com arquivos Parquet particionados
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   benchmark de groupby, join e filtros seletivos em datasets grandes
   diferença de consumo de memória em lazy/eager execution
   custo de conversão entre DataFrame e tabelas SQL
@@ -231,11 +237,11 @@ Ferramentas: pyspark e trino
 Contexto:    preciso processar muitos dados e também consultar rápido para BI
 Foco:        1 (comparação geral)
 
-Perguntas:
-  quando usar pyspark em vez de trino?
-  qual costuma responder dashboards mais rápido?
-  qual é mais simples para o time operar?
-  como os dois podem trabalhar juntos?
+Perguntas (objetivas, anti-ruído):
+  em quais workloads (ETL pesado vs serving SQL) cada um vence?
+  latência p95 de consultas para dashboard em carga concorrente?
+  complexidade operacional (deploy, tuning, incidentes) por equipe/mês?
+  arquitetura de integração ponta a ponta com etapas e handoff de dados?
 
 Critérios:
   explica processamento vs consulta de forma clara
@@ -250,7 +256,7 @@ Ferramentas: pyspark e trino
 Contexto:    lakehouse com S3/MinIO + BI em produção
 Foco:        5 (integração)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   qual estratégia para ETL pesado (joins, deduplicação, janelas)?
   como otimizar tabelas Iceberg/Delta para leitura no Trino?
   quais parâmetros afetam throughput no Spark e latência no Trino?
@@ -273,11 +279,11 @@ Ferramentas: kafka e flink
 Contexto:    preciso processar eventos em tempo real sem perder mensagens
 Foco:        2 (performance / throughput)
 
-Perguntas:
-  como garantir que mensagens não se percam?
-  qual volume por segundo é realista em ambiente médio?
-  quais erros aparecem com mais frequência?
-  como monitorar se o pipeline está atrasando?
+Perguntas (objetivas, anti-ruído):
+  como validar garantia de entrega (at-least-once/exactly-once) na prática?
+  throughput sustentado realista (eventos/s) em ambiente médio?
+  erros mais frequentes com evidência de causa e mitigação?
+  métricas e alertas para detectar lag/backpressure?
 
 Critérios:
   explica conceitos de forma simples
@@ -292,7 +298,7 @@ Ferramentas: kafka e flink
 Contexto:    processamento de eventos críticos com SLA de baixa latência
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput máximo por partição e por cluster em cenário controlado
   latência end-to-end p50/p95/p99 com janelas e estado
   impacto de exactly-once e checkpointing no desempenho
@@ -317,15 +323,15 @@ Ferramentas: prometheus e victoriametrics
 Contexto:    quero monitorar muitos serviços sem gastar recursos demais
 Foco:        2 (performance / throughput)
 
-Perguntas:
-  qual aguenta mais métricas com menos custo?
-  qual é mais fácil de operar no dia a dia?
-  como fica retenção de dados e consultas longas?
-  quando trocar Prometheus puro por VictoriaMetrics?
+Perguntas (objetivas, anti-ruído):
+  ingestão máxima (samples/s) por custo mensal?
+  esforço operacional diário (tarefas e tempo) por ferramenta?
+  custo e latência para retenção longa e consultas históricas?
+  limites objetivos para migração (cardinalidade, custo, latência)?
 
 Critérios:
   compara ingestão, armazenamento e consulta
-  inclui benchmark simples e reproduzível
+  inclui benchmark reprodutível simples e reproduzível
   traz custo operacional estimado
   explica trade-offs sem viés
 ```
@@ -336,7 +342,7 @@ Ferramentas: prometheus e victoriametrics
 Contexto:    plataforma com alta cardinalidade e retenção longa
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   ingestão sustentada (samples/s) com cardinalidade alta
   latência de query em range curto e longo
   compressão e uso de disco por série
@@ -359,11 +365,11 @@ Ferramentas: loki e elasticsearch
 Contexto:    quero centralizar logs de aplicações e servidores
 Foco:        2 (performance / throughput)
 
-Perguntas:
-  qual usa menos recurso para armazenar logs?
-  qual é melhor para buscar erros rapidamente?
-  qual é mais simples para manter?
-  qual escala melhor com aumento de volume?
+Perguntas (objetivas, anti-ruído):
+  custo de armazenamento por GB de log útil?
+  latência p95 de busca para troubleshooting em produção?
+  esforço de operação e manutenção mensal?
+  comportamento de escala com aumento de ingestão (x2/x5)?
 
 Critérios:
   compara ingestão e busca
@@ -378,7 +384,7 @@ Ferramentas: loki e elasticsearch
 Contexto:    observabilidade com alto volume de logs e retenção de 30+ dias
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput de ingestão com diferentes tamanhos de linha
   latência de busca em índices frios e quentes
   custo de storage por GB ingerido
@@ -403,15 +409,15 @@ Ferramentas: ollama e lm studio
 Contexto:    quero rodar IA local no notebook para uso diário
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais fácil para instalar e começar?
-  qual funciona melhor sem placa de vídeo forte?
-  qual responde mais rápido no uso comum?
-  qual oferece interface mais amigável?
+Perguntas (objetivas, anti-ruído):
+  tempo de setup inicial (passos + minutos) para uso local?
+  desempenho em CPU-only e baixo VRAM?
+  latência p95 e tokens/s em prompts comuns?
+  esforço de uso para operação diária (UX e troubleshooting)?
 
 Critérios:
   compara facilidade, desempenho e consumo
-  inclui comandos reais de instalação
+  inclui comandos reais com sintaxe validada de instalação
   mostra limitações por hardware
   não usa placeholders
 ```
@@ -422,11 +428,11 @@ Ferramentas: ollama e lm studio
 Contexto:    uso local para desenvolvimento com modelos 7B/13B
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   tokens/s por modelo e quantização em CPU/GPU
   tempo de warmup e latência da primeira resposta
   uso de RAM/VRAM em idle e carga
-  como cada ferramenta lida com concorrência local?
+  comportamento sob concorrência local (latência, fila e estabilidade)?
 
 Critérios:
   benchmark reproduzível com mesma máquina/modelo
@@ -447,15 +453,15 @@ Ferramentas: fastapi, django e flask
 Contexto:    preciso construir API para produto novo
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais rápido para começar?
-  qual aguenta mais requisições com menos esforço?
-  qual tem mais recursos prontos?
-  qual facilita manutenção a longo prazo?
+Perguntas (objetivas, anti-ruído):
+  tempo de setup inicial (passos + minutos) para API funcional?
+  throughput sustentado (req/s) por esforço operacional?
+  cobertura de recursos nativos relevantes para produção?
+  custo de manutenção a longo prazo (migrations, testes, observabilidade)?
 
 Critérios:
   compara produtividade e performance
-  inclui benchmark básico de requests/s
+  inclui benchmark reprodutível básico de requests/s
   mostra curva de aprendizado
   indica quando cada um faz sentido
 ```
@@ -466,7 +472,7 @@ Ferramentas: fastapi, django e flask
 Contexto:    API de produção com autenticação, observabilidade e scaling horizontal
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   latência p50/p95/p99 sob carga concorrente
   throughput por worker e impacto de async/sync
   overhead de middleware e validação
@@ -489,11 +495,11 @@ Ferramentas: redis, dragonfly e keydb
 Contexto:    preciso acelerar aplicação com cache em memória
 Foco:        2 (performance / throughput)
 
-Perguntas:
-  qual entrega mais desempenho com menos RAM?
-  qual é mais estável para produção?
-  qual é mais simples de operar?
-  qual tem melhor custo-benefício?
+Perguntas (objetivas, anti-ruído):
+  throughput por GB de RAM em carga mista?
+  taxa de erro e comportamento em falha/recovery sob carga?
+  esforço operacional mensal para cache em produção?
+  custo por throughput com SLA definido?
 
 Critérios:
   compara operações de leitura/escrita
@@ -508,7 +514,7 @@ Ferramentas: redis, dragonfly e keydb
 Contexto:    cache distribuído para APIs com alto tráfego
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput em GET/SET com concorrência alta
   latência p95/p99 em carga mista
   impacto de persistência (AOF/RDB) no desempenho
@@ -533,15 +539,15 @@ Ferramentas: ceph, minio e seaweedfs
 Contexto:    quero armazenar arquivos em infraestrutura própria
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais fácil de instalar e manter?
-  qual costuma ser mais rápido para upload/download?
-  qual escala melhor quando cresce o volume?
-  qual tem melhor custo operacional?
+Perguntas (objetivas, anti-ruído):
+  tempo de setup + esforço de operação mensal?
+  latência p95 e throughput para upload/download em carga concorrente?
+  estratégia de escala horizontal e impacto em custo/performance?
+  custo operacional mensal por TB útil?
 
 Critérios:
   compara instalação, operação e desempenho
-  inclui benchmark básico de leitura/escrita
+  inclui benchmark reprodutível básico de leitura/escrita
   aponta limitações de cada solução
   recomenda conforme contexto
 ```
@@ -552,7 +558,7 @@ Ferramentas: ceph, minio e seaweedfs
 Contexto:    object storage self-hosted para dados críticos e tráfego alto
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput de leitura/escrita em objetos pequenos e grandes
   latência p95/p99 em carga concorrente
   custo de replicação/erasure coding no desempenho
@@ -577,15 +583,15 @@ Ferramentas: postgresql e clickhouse
 Contexto:    tenho dados transacionais e também preciso de relatórios rápidos
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é melhor para sistema operacional do dia a dia?
-  qual é melhor para consultas analíticas grandes?
-  dá para usar os dois juntos?
-  qual tende a custar menos para manter?
+Perguntas (objetivas, anti-ruído):
+  cenário OLTP (transação): quem vence e por quê?
+  cenário OLAP (analítico): quem vence e por quê?
+  arquitetura conjunta com sincronização OLTP->OLAP?
+  custo mensal estimado por workload (compute + storage + operação)?
 
 Critérios:
   compara escrita transacional e leitura analítica
-  inclui benchmark simples de insert e query
+  inclui benchmark reprodutível simples de insert e query
   explica quando combinar ambos
   não recomenda sem contexto
 ```
@@ -596,7 +602,7 @@ Ferramentas: postgresql e clickhouse
 Contexto:    plataforma com workload misto (transações + BI)
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput de inserts/updates no PostgreSQL vs ingestão em lote no ClickHouse
   latência p50/p95 de agregações em tabelas grandes
   impacto de particionamento, índices e compressão
@@ -621,11 +627,11 @@ Ferramentas: spark structured streaming e flink
 Contexto:    quero processar eventos em tempo real com confiabilidade
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais fácil para começar?
-  qual lida melhor com atraso de eventos?
-  qual costuma ter menor latência?
-  qual é mais simples de operar em produção?
+Perguntas (objetivas, anti-ruído):
+  tempo de setup inicial (passos + minutos)
+  latência de processamento com eventos atrasados/out-of-order?
+  latência p95/p99 sob carga contínua?
+  esforço de operação em produção (SLO, tuning, incidentes)?
 
 Critérios:
   explica conceitos sem jargão excessivo
@@ -640,7 +646,7 @@ Ferramentas: spark structured streaming e flink
 Contexto:    processamento contínuo com SLA de baixa latência
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   latência p50/p95/p99 com stateful operations
   impacto de watermark/checkpoint no throughput
   comportamento sob backpressure
@@ -665,11 +671,11 @@ Ferramentas: dbt core e sqlmesh
 Contexto:    quero organizar transformações SQL com menos retrabalho
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais fácil de adotar no time?
-  qual ajuda mais na qualidade dos dados?
-  qual é melhor para versionar mudanças?
-  qual reduz mais erros em produção?
+Perguntas (objetivas, anti-ruído):
+  tempo de adoção e curva de aprendizado da equipe?
+  cobertura de testes/validações para qualidade de dados?
+  versionamento e deploy: diferenças práticas por cenário?
+  redução de erros em produção com evidência operacional?
 
 Critérios:
   compara curva de aprendizado e fluxo de trabalho
@@ -684,7 +690,7 @@ Ferramentas: dbt core e sqlmesh
 Contexto:    transformação SQL em ambiente com múltiplos domínios de dados
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   tempo de build incremental vs full refresh
   overhead de testes e validações
   impacto em custo computacional por execução
@@ -709,11 +715,11 @@ Ferramentas: airflow e dagster
 Contexto:    preciso agendar e monitorar pipelines de dados
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais fácil para manter no dia a dia?
-  qual tem melhor visibilidade dos erros?
-  qual é mais simples para o time evoluir?
-  qual é mais estável em produção?
+Perguntas (objetivas, anti-ruído):
+  esforço de manutenção diária (alertas, retries, backfills)?
+  visibilidade de falhas (logs, lineage, observabilidade)?
+  velocidade de evolução de pipelines com segurança?
+  taxa de falha e MTTR em produção?
 
 Critérios:
   compara usabilidade, operação e manutenção
@@ -728,7 +734,7 @@ Ferramentas: airflow e dagster
 Contexto:    orquestração de pipelines críticos com dependências complexas
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   overhead do scheduler com muitos jobs
   latência entre tarefas encadeadas
   comportamento de retries e backfills
@@ -753,11 +759,11 @@ Ferramentas: nats jetstream e kafka
 Contexto:    preciso trocar mensagens entre serviços com confiabilidade
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais simples de subir e operar?
-  qual aguenta mais volume?
-  qual tem menor latência?
-  qual é melhor para equipe pequena?
+Perguntas (objetivas, anti-ruído):
+  tempo de setup + complexidade operacional (cluster e upgrades)?
+  throughput sustentado com carga concorrente
+  latência p95/p99 sob carga
+  melhor escolha para equipe pequena com restrição de operação?
 
 Critérios:
   compara complexidade operacional e desempenho
@@ -772,7 +778,7 @@ Ferramentas: nats jetstream e kafka
 Contexto:    arquitetura event-driven com múltiplos consumidores
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput sustentado por tópico/subject
   latência p95/p99 em carga alta
   garantias de entrega e replay
@@ -797,15 +803,15 @@ Ferramentas: opensearch e elasticsearch
 Contexto:    quero buscar logs e documentos com boa performance
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais fácil de administrar?
-  qual consulta mais rápido em volume alto?
-  qual custa menos para manter?
-  qual integra melhor com dashboards?
+Perguntas (objetivas, anti-ruído):
+  esforço administrativo mensal (tuning, upgrades, incidentes)?
+  latência p95 de consulta em volume alto?
+  custo operacional mensal e complexidade técnica com evidência
+  integração com dashboards e stack de observabilidade
 
 Critérios:
   compara custo, desempenho e operação
-  inclui benchmark básico de indexação e busca
+  inclui benchmark reprodutível básico de indexação e busca
   mostra trade-offs de ecossistema
   recomenda por contexto
 ```
@@ -816,7 +822,7 @@ Ferramentas: opensearch e elasticsearch
 Contexto:    plataforma de observabilidade e busca com alta ingestão
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput de indexação com shards equivalentes
   latência p50/p95 de queries complexas
   custo de storage e retenção
@@ -841,11 +847,11 @@ Ferramentas: gpt-4.1, claude 3.7 sonnet e gemini 2.0 flash
 Contexto:    quero escolher um modelo para assistente do time
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual entrega melhor resposta com menos erro?
-  qual responde mais rápido?
-  qual tende a custar menos por uso?
-  qual é melhor para tarefas do dia a dia?
+Perguntas (objetivas, anti-ruído):
+  taxa de acerto/falha em suíte de prompts representativa?
+  latência p50/p95 por classe de prompt?
+  custo mensal estimado por workload de uso
+  cenário de uso diário: qualidade x latência x custo?
 
 Critérios:
   compara qualidade, velocidade e custo
@@ -860,7 +866,7 @@ Ferramentas: gpt-4.1, claude 3.7 sonnet e gemini 2.0 flash
 Contexto:    plataforma com RAG, automação e análise de documentos
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   latência p50/p95 por tamanho de prompt/resposta
   taxa de acerto em benchmark interno de tarefas
   custo por 1k requests em cenários reais
@@ -885,11 +891,11 @@ Ferramentas: spacy, stanza e hugging face transformers
 Contexto:    preciso extrair entidades e classificar textos
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais fácil para iniciar?
-  qual funciona melhor em português?
-  qual é mais rápido em CPU?
-  qual tem melhor qualidade para produção?
+Perguntas (objetivas, anti-ruído):
+  tempo de setup inicial (passos + minutos)
+  qualidade em português (f1/accuracy ou avaliação cega)?
+  throughput/latência em CPU para tarefas de NLP?
+  qualidade e estabilidade em domínio real de produção?
 
 Critérios:
   compara qualidade e velocidade
@@ -904,7 +910,7 @@ Ferramentas: spacy, stanza e hugging face transformers
 Contexto:    processamento de alto volume de textos multilíngues
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   throughput de NER e classificação por segundo
   latência por documento em CPU e GPU
   impacto de batch size e quantização
@@ -929,11 +935,11 @@ Ferramentas: pgvector, qdrant e weaviate
 Contexto:    quero implementar busca semântica no meu produto
 Foco:        1 (comparação geral)
 
-Perguntas:
-  qual é mais simples de colocar no ar?
-  qual busca mais rápido em base grande?
-  qual dá menos trabalho para manter?
-  qual integra melhor com pipeline de embeddings?
+Perguntas (objetivas, anti-ruído):
+  tempo de setup para ambiente funcional de busca vetorial?
+  latência p95 de busca ANN em base grande?
+  esforço de operação mensal (reindexação, backup, tuning)?
+  integração com pipeline de embeddings/RAG com baixo atrito?
 
 Critérios:
   compara simplicidade, desempenho e operação
@@ -948,7 +954,7 @@ Ferramentas: pgvector, qdrant e weaviate
 Contexto:    RAG em produção com alto volume de documentos
 Foco:        2 (performance / throughput)
 
-Perguntas:
+Perguntas (objetivas, anti-ruído):
   recall@k e latência p95 em ANN sob carga
   impacto de index types e parâmetros de busca
   custo de atualização/reindexação em produção

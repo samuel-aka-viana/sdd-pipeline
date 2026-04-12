@@ -100,6 +100,14 @@ class PipelineLogger:
             "title": title
         })
 
+    def section_end(self, number: int, total: int, title: str, status: str = "ok"):
+        self.event_log.log_event("section_end", {
+            "number": number,
+            "total": total,
+            "title": title,
+            "status": status,
+        })
+
     @contextmanager
     def task(self, description: str):
         """Context manager for tracking task execution time with spinner animation.
@@ -289,3 +297,20 @@ class PipelineLogger:
         if self.is_detailed():
             self.console.print(metrics_table)
         self.event_log.log_event("metrics", data)
+
+    def pipeline_end(
+        self,
+        status: str,
+        elapsed_seconds: float,
+        approved: bool | None = None,
+        iteration: int | None = None,
+    ):
+        payload = {
+            "status": status,
+            "elapsed_seconds": elapsed_seconds,
+        }
+        if approved is not None:
+            payload["approved"] = approved
+        if iteration is not None:
+            payload["iteration"] = iteration
+        self.event_log.log_event("pipeline_end", payload)

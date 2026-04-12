@@ -164,6 +164,26 @@ LOW_SIGNAL_DOMAINS = {
     "sourceforge.net",
     "stackshare.io",
     "openalternative.co",
+    "userbenchmark.com",
+    "userbenchmark.org",
+    "humanbenchmark.com",
+    "dedicatedcore.com",
+    "getorchestra.io",
+    "readmedium.com",
+    "github-wiki-see.page",
+    "explore.market.dev",
+    "explaintopic.com",
+    "news.lavx.hu",
+    "news.smol.ai",
+    "cccok.cn",
+    "toolhalla.ai",
+    "arsturn.com",
+    "vmme.org",
+    "techbyjz.blog",
+    "markaicode.com",
+    "fastlaunchapi.dev",
+    "codezup.com",
+    "johal.in",
 }
 
 LOW_SIGNAL_PATH_MARKERS = (
@@ -191,6 +211,7 @@ MEDIUM_TRUST_DOMAINS = {
     "dev.to",
     "substack.com",
     "readthedocs.io",
+    "deepwiki.com",
 }
 
 TECH_EVIDENCE_TERMS = (
@@ -238,6 +259,84 @@ GENERIC_KEYWORD_TERMS = {
     "official",
     "alternative",
     "alternatives",
+}
+
+QUESTION_STOPWORDS = {
+    "a",
+    "as",
+    "o",
+    "os",
+    "de",
+    "da",
+    "das",
+    "do",
+    "dos",
+    "e",
+    "em",
+    "para",
+    "por",
+    "com",
+    "sem",
+    "que",
+    "como",
+    "quando",
+    "qual",
+    "quais",
+    "no",
+    "na",
+    "nos",
+    "nas",
+    "um",
+    "uma",
+    "ou",
+    "ao",
+    "aos",
+    "nao",
+    "não",
+}
+
+TOOL_IDENTITY_STOPWORDS = {
+    "core",
+}
+
+PERFORMANCE_INTENT_TERMS = {
+    "benchmark",
+    "benchmarks",
+    "latencia",
+    "latência",
+    "throughput",
+    "rps",
+    "qps",
+    "p50",
+    "p95",
+    "p99",
+    "cpu",
+    "ram",
+    "vram",
+    "memoria",
+    "memória",
+}
+
+INTEGRATION_INTENT_TERMS = {
+    "integracao",
+    "integração",
+    "arquitetura",
+    "pipeline",
+    "fluxo",
+    "connector",
+}
+
+SECURITY_INTENT_TERMS = {
+    "seguranca",
+    "segurança",
+    "auth",
+    "autenticacao",
+    "autenticação",
+    "rbac",
+    "tls",
+    "ssl",
+    "cve",
+    "vulnerabilidade",
 }
 
 MAX_SCRAPES_PER_TOOL = 10
@@ -323,7 +422,15 @@ class ResearcherSkill:
             "scrape_status": scrape_status,
         })
 
-    def run(self, tool, alternative="", foco="comparação geral", questoes=None):
+    def run(
+        self,
+        tool,
+        alternative="",
+        foco="comparação geral",
+        questoes=None,
+        refresh_search: bool = False,
+        targeted_questions_only: bool = False,
+    ):
         """Execute research pipeline for a tool.
         
         Builds search queries, scrapes URLs, learns from memory, calls LLM researcher,
@@ -350,10 +457,16 @@ class ResearcherSkill:
         questoes = questoes or []
         logger.debug(f"Starting research for tool: {tool}, foco: {foco}")
         
-        queries = self.build_queries(tool, alternative, foco, questoes)
+        queries = self.build_queries(
+            tool=tool,
+            alternative=alternative,
+            foco=foco,
+            questoes=questoes,
+            targeted_questions_only=targeted_questions_only,
+        )
         logger.debug(f"Built {len(queries)} search queries")
 
-        results_by_query = self.search.search_multi(queries)
+        results_by_query = self.search.search_multi(queries, force_refresh=refresh_search)
         logger.debug(f"Got search results for {len(results_by_query)} queries")
 
         filtered_results_by_query = self.filter_search_results(
@@ -440,7 +553,14 @@ Produza o relatório:
         })
         return resp.response
 
-    def build_queries(self, tool, alternative, foco, questoes):
+    def build_queries(
+        self,
+        tool,
+        alternative,
+        foco,
+        questoes,
+        targeted_questions_only: bool = False,
+    ):
         """Build list of search queries from FOCUS_QUERIES templates.
         
         Substitutes {tool} and {alternative} placeholders and appends custom questions.
@@ -458,6 +578,17 @@ Produza o relatório:
             queries = researcher.build_queries("DuckDB", "Polars", "comparação geral", [])
             # Returns ~10-14 queries about DuckDB vs Polars
         """
+        if targeted_questions_only and questoes:
+            return [
+                self.build_question_query(
+                    tool=tool,
+                    alternative=alternative,
+                    question=question,
+                    focus=foco,
+                )
+                for question in questoes[:6]
+            ]
+
         templates = FOCUS_QUERIES.get(foco, DEFAULT_QUERIES)
         alt = alternative or "alternatives"
         queries = [
@@ -465,8 +596,58 @@ Produza o relatório:
             for query_template in templates
         ]
         for question in questoes[:4]:
-            queries.append(f"{tool} {question}")
+            queries.append(
+                self.build_question_query(
+                    tool=tool,
+                    alternative=alternative,
+                    question=question,
+                    focus=foco,
+                )
+            )
         return queries
+
+    def build_question_query(
+        self,
+        tool: str,
+        alternative: str,
+        question: str,
+        focus: str,
+    ) -> str:
+        normalized_question = (question or "").lower().strip()
+        question_terms = [
+            term
+            for term in re.split(r"[^a-zA-Z0-9]+", normalized_question)
+            if len(term) >= 3 and term not in QUESTION_STOPWORDS and term not in GENERIC_KEYWORD_TERMS
+        ]
+        compact_terms = " ".join(question_terms[:8]).strip()
+        scope_terms = [tool]
+        if alternative and any(
+            marker in normalized_question
+            for marker in ("integr", "junto", "combinar", "ambos", "dois")
+        ):
+            scope_terms.append(alternative)
+
+        base_query = " ".join(scope_terms + ([compact_terms] if compact_terms else [normalized_question]))
+
+        if self.has_intent_term(normalized_question, PERFORMANCE_INTENT_TERMS):
+            return f"{base_query} benchmark latency throughput"
+        if self.has_intent_term(normalized_question, INTEGRATION_INTENT_TERMS):
+            return f"{base_query} integration architecture example"
+        if self.has_intent_term(normalized_question, SECURITY_INTENT_TERMS):
+            return f"{base_query} security hardening best practices"
+        focus_lower = (focus or "").lower()
+        if (
+            ("performance" in focus_lower or "throughput" in focus_lower)
+            and self.has_intent_term(base_query, PERFORMANCE_INTENT_TERMS)
+        ):
+            return f"{base_query} benchmark latency throughput"
+        if "integra" in focus_lower and self.has_intent_term(base_query, INTEGRATION_INTENT_TERMS):
+            return f"{base_query} integration architecture example"
+        return base_query.strip()
+
+    def has_intent_term(self, text: str, terms: set[str]) -> bool:
+        normalized_text = (text or "").lower()
+        return any(intent_term in normalized_text for intent_term in terms)
 
     def build_context(self, results_by_query):
         """Scrape URLs and build context string for LLM analysis.
@@ -573,7 +754,7 @@ Produza o relatório:
         alternative: str,
     ) -> dict[str, list[dict]]:
         relevance_keywords = self.build_relevance_keywords(tool, alternative)
-        tool_identity_terms = self.build_tool_identity_terms(tool)
+        tool_identity_terms = self.build_tool_identity_terms(tool, alternative)
         filtered_results_by_query: dict[str, list[dict]] = {}
         for query, results in results_by_query.items():
             scored_results = []
@@ -614,13 +795,20 @@ Produza o relatório:
             if len(term) >= 3 and term not in GENERIC_KEYWORD_TERMS
         }
 
-    def build_tool_identity_terms(self, tool: str) -> set[str]:
-        normalized_tool = (tool or "").lower().strip()
-        tool_terms = {normalized_tool} if normalized_tool else set()
-        split_terms = re.split(r"[^a-zA-Z0-9]+", normalized_tool)
-        tool_terms.update(
-            term for term in split_terms if len(term) >= 4 and term not in GENERIC_KEYWORD_TERMS
-        )
+    def build_tool_identity_terms(self, tool: str, alternative: str) -> set[str]:
+        raw_terms = [(tool or "").lower().strip(), (alternative or "").lower().strip()]
+        tool_terms: set[str] = set()
+        for raw_term in raw_terms:
+            if raw_term:
+                tool_terms.add(raw_term)
+            split_terms = re.split(r"[^a-zA-Z0-9]+", raw_term)
+            tool_terms.update(
+                term
+                for term in split_terms
+                if len(term) >= 3
+                and term not in GENERIC_KEYWORD_TERMS
+                and term not in TOOL_IDENTITY_STOPWORDS
+            )
         return {term for term in tool_terms if term}
 
     def is_result_relevant(
@@ -635,6 +823,8 @@ Produza o relatório:
         title = (result_item.get("title", "") or "").lower()
         snippet = (result_item.get("snippet", "") or "").lower()
         combined_text = f"{url} {title} {snippet}"
+        if not self.has_required_tool_anchor(combined_text, tool_identity_terms):
+            return False
 
         if self.is_qna_host(host):
             return self.has_tool_identity_match(combined_text, tool_identity_terms)
@@ -712,6 +902,13 @@ Produza o relatório:
             return False
         return any(tool_term in combined_text for tool_term in tool_identity_terms)
 
+    def has_required_tool_anchor(self, combined_text: str, tool_identity_terms: set[str]) -> bool:
+        requires_dbt_anchor = "dbt" in tool_identity_terms or "sqlmesh" in tool_identity_terms
+        if not requires_dbt_anchor:
+            return True
+        required_anchors = ("dbt", "dbt-core", "sqlmesh")
+        return any(required_anchor in combined_text for required_anchor in required_anchors)
+
     def is_low_signal_host(self, host: str) -> bool:
         return any(
             host == low_signal_domain or host.endswith(f".{low_signal_domain}")
@@ -725,6 +922,7 @@ Produza o relatório:
         parsed_url = urlparse(url.lower())
         host = parsed_url.netloc
         path = parsed_url.path or ""
+        query = parsed_url.query or ""
 
         if any(
             host == blocked_domain or host.endswith(f".{blocked_domain}")
@@ -742,6 +940,15 @@ Produza o relatório:
             return True
 
         if any(marker in path for marker in LOW_SIGNAL_PATH_MARKERS):
+            return True
+
+        if host.endswith("github.com") and path.startswith("/topics/"):
+            return True
+        if host.endswith("stackoverflow.com") and "/questions/tagged/" in path:
+            return True
+        if host.endswith("stackoverflow.com") and path.startswith("/tags/"):
+            return True
+        if "trk=" in query:
             return True
 
         return False

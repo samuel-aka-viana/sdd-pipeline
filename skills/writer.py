@@ -73,6 +73,7 @@ ATENÇÃO: O artigo anterior foi REJEITADO por conter os problemas acima.
 """
 
         questoes_block = ""
+        question_answer_template_block = ""
         if questoes:
             lista = "\n".join(f"- {question}" for question in questoes)
             questoes_block = f"""
@@ -80,7 +81,9 @@ O artigo DEVE responder explicitamente estas perguntas:
 {lista}
 Cada resposta deve aparecer claramente no texto.
 """
+            question_answer_template_block = self.build_question_answer_template_block(questoes)
             logger.debug(f"Added {len(questoes)} questions to writer prompt")
+        objective_requirements_block = self.build_objective_requirements_block(questoes)
 
         lessons_block = f"\n{lessons}\n" if lessons else ""
 
@@ -129,6 +132,9 @@ REGRAS INVIOLÁVEIS:
 5. URLs em referências devem ser APENAS das URLs consultadas na pesquisa
 6. Toda tabela deve ter TODAS as células preenchidas — se não tem dado, remova a linha
 7. Toda solução em Armadilhas deve ter comando real com no mínimo 20 caracteres
+8. Sempre que a pergunta pedir benchmark/latência/throughput, responda com métrica numérica ou
+   escreva explicitamente "Sem dados mensuráveis nas fontes consultadas" (sem inventar números)
+{objective_requirements_block}
 
 TEMPLATE (inclua TODAS as seções):
 
@@ -179,6 +185,7 @@ TEMPLATE (inclua TODAS as seções):
 
 ## Referências
 [mínimo 3 URLs reais da pesquisa, formato: - URL]
+{question_answer_template_block}
 """
         resp = self.llm.generate(
             role="writer",
@@ -190,6 +197,54 @@ TEMPLATE (inclua TODAS as seções):
         )
         self.memory.log_event("article_written", {"ferramentas": ferramentas})
         return resp.response
+
+    def build_question_answer_template_block(self, questoes: list[str]) -> str:
+        if not questoes:
+            return ""
+        formatted_questions = "\n".join(
+            f'- Pergunta: "{question}"\n  Resposta objetiva: [resposta]\n  Evidência/URL: [URL da seção Referências ou N/D]'
+            for question in questoes
+        )
+        return (
+            "\n\n## Respostas às Perguntas do Contexto\n"
+            "Responda cada pergunta abaixo de forma explícita. "
+            "Se faltarem números, escreva exatamente: "
+            "\"Sem dados mensuráveis nas fontes consultadas\" "
+            "e use Evidência/URL: N/D.\n\n"
+            f"{formatted_questions}\n"
+        )
+
+    def build_objective_requirements_block(self, questoes: list[str]) -> str:
+        normalized_questions = " ".join(questoes or []).lower()
+        requirements = []
+
+        if any(token in normalized_questions for token in ("p95", "latência", "latencia", "throughput")):
+            requirements.append(
+                "- Inclua uma mini tabela comparando p95/throughput de DuckDB vs Polars, "
+                "ou declare ausência de dados mensuráveis com fonte."
+            )
+
+        if any(token in normalized_questions for token in ("sql-first", "sql first", "dataframe-first", "dataframe first")):
+            requirements.append(
+                "- Descreva ganhos e perdas de SQL-first vs DataFrame-first com critérios objetivos "
+                "(complexidade, manutenção, performance)."
+            )
+
+        if any(token in normalized_questions for token in ("integração", "integracao", "python", "compatibilidade")):
+            requirements.append(
+                "- Mostre esforço de integração Python com exemplos mínimos de libs/APIs e riscos de manutenção."
+            )
+
+        if any(token in normalized_questions for token in ("ambos", "pipeline", "arquitetura combinada")):
+            requirements.append(
+                "- Inclua um cenário claro de arquitetura combinada (quando usar ambos no mesmo pipeline)."
+            )
+
+        if not requirements:
+            return ""
+
+        joined_requirements = "\n".join(requirements)
+        return f"\nREQUISITOS OBJETIVOS DE COBERTURA:\n{joined_requirements}\n"
 
     def compact_text_block(self, text: str, max_chars: int, label: str) -> str:
         content = (text or "").strip()

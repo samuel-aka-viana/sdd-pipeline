@@ -29,6 +29,11 @@ FOCOS_DISPONIVEIS = [
 ]
 
 
+def parse_main_flags(args: list[str]) -> dict:
+    refresh_search = "--refresh-search" in args
+    return {"refresh_search": refresh_search}
+
+
 def perguntar_foco() -> str:
     console.print("\n[dim]Focos disponíveis:[/dim]")
     for menu_index, foco_disponivel in enumerate(FOCOS_DISPONIVEIS, MENU_INDEX_START):
@@ -132,6 +137,8 @@ def checklist_pos_execucao(validacoes: list[str], output_path: str):
 
 
 def main():
+    cli_flags = parse_main_flags(sys.argv[1:])
+
     console.print()
     console.print(Panel.fit(
         "[bold cyan]SDD Tech Writer[/bold cyan]\n"
@@ -156,6 +163,9 @@ def main():
         console.print("[dim]Cancelado.[/dim]")
         sys.exit(0)
 
+    if cli_flags["refresh_search"]:
+        console.print("[yellow]Modo refresh-search ativo: ignorando cache de busca nesta execução.[/yellow]")
+
     pipeline    = SDDPipeline(verbosity="minimal")
     try:
         output_path = pipeline.run(
@@ -163,6 +173,7 @@ def main():
             contexto=contexto,
             foco=foco,
             questoes=questoes,
+            refresh_search=cli_flags["refresh_search"],
         )
     except Exception as error:
         console.print()

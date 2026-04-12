@@ -14,6 +14,9 @@ Você informa ferramentas + contexto + perguntas, e o sistema gera um artigo em 
 - Estrutura análise técnica
 - Escreve artigo com template consistente
 - Reprova automaticamente artigo ruim e tenta corrigir (até 5 iterações)
+- Quando faltar evidência no critic, reexecuta pesquisa + análise antes de reescrever
+- Usa fallback automático de LLM (OpenRouter -> Ollama Cloud -> Ollama Local)
+- Reaproveita resultados de busca com cache (TTL) entre execuções
 - Salva saídas e métricas em disco
 
 ## Arquitetura rápida
@@ -25,6 +28,77 @@ Você informa ferramentas + contexto + perguntas, e o sistema gera um artigo em 
 - `pipeline.py`: orquestração
 - `spec/article_spec.yaml`: regras, validação e parâmetros de geração
 - `.env`: seleção de provider e modelos em runtime
+
+## Diagrama de arquitetura
+
+```text
++------------------+        +----------------------+
+|   main.py (CLI)  | -----> |     pipeline.py      |
++------------------+        +----------+-----------+
+                                        |
+                 +----------------------+----------------------+
+                 |                      |                      |
+                 v                      v                      v
+      +------------------+   +------------------+   +------------------+
+      | skills/researcher|   |  skills/analyst  |   |  skills/writer   |
+      +--------+---------+   +------------------+   +------------------+
+               |
+               +--> tools/search_tool.py
+               +--> tools/scraper_tool.py
+                                        |
+                                        v
+                             +------------------+
+                             |  skills/critic   |
+                             +--------+---------+
+                                      |
+                                      v
+                        +------------------------------+
+                        | validators/spec_validator.py |
+                        +------------------------------+
+
+Dependências centrais:
+  pipeline.py --> spec/article_spec.yaml
+  pipeline.py --> memory/
+
+Saídas:
+  pipeline.py --> output/debug_research.md
+  pipeline.py --> output/debug_analysis.md
+  pipeline.py --> output/pipeline_events.jsonl
+  pipeline.py --> artigos/*.md
+```
+
+## Diagrama de fluxo
+
+```text
+1) main.py coleta:
+   - ferramentas
+   - contexto
+   - foco
+   - perguntas
+
+2) pipeline.py executa:
+   [Researcher] -> [Analyst] -> [Writer] -> [Critic]
+                                     ^           |
+                                     |           |
+                                     +-----------+
+                           (se reprovado e ainda há iteração)
+
+   Se a reprovação indicar falta de dados/evidência:
+   [Critic] -> [Researcher refresh] -> [Analyst] -> [Writer] -> [Critic]
+             (limitado por pipeline.max_research_enrichments)
+
+3) Critic decide:
+   - aprovado ............... salva artigo + métricas + eventos
+   - reprovado (com iteração) volta para Writer com correções
+   - limite atingido ........ salva melhor versão disponível
+
+LLM fallback (para researcher/analyst/writer/critic):
+   OpenRouter
+      |
+      +-- falha (429/timeout) --> Ollama Cloud (glm5.1:cloud)
+                                       |
+                                       +-- falha --> Ollama Local
+```
 
 ## Modos de LLM suportados
 
@@ -132,6 +206,12 @@ O CLI pede:
 python main.py
 ```
 
+### Forçar nova pesquisa (ignorar cache de busca)
+
+```bash
+python main.py --refresh-search
+```
+
 ### Observabilidade
 
 ```bash
@@ -171,16 +251,19 @@ uv run ruff check . && uv run pytest -q
 - `.env`:
   - provider em runtime (`LLM_PROVIDER`)
   - modelos por role (`LLM_MODEL_*`)
+  - modelos de fallback opcionais (`LLM_MODEL_FALLBACK_CLOUD`, `LLM_MODEL_FALLBACK_LOCAL`)
 - `spec/article_spec.yaml`:
   - regras de qualidade
   - seções obrigatórias
   - timeout/temperature/context_length
   - timeout global da execução (`pipeline.timeout_total_seconds`)
-  - fallback de provider/modelos
+  - enriquecimento de pesquisa pós-critic (`pipeline.max_research_enrichments`)
+  - cache de busca (`research.search_cache.*`)
 
 ## Limitações conhecidas
 
 - OpenRouter free pode limitar requisições (429 em pico)
+- Com 429/timeout, o sistema tenta fallback cloud/local; se ambos falharem, encerra com erro amigável
 - Qualidade em `ollama_local` depende do modelo/hardware
 - Scraping pode falhar em sites complexos (há fallback)
 - Sem bons resultados de busca, o artigo fica mais raso
@@ -217,7 +300,7 @@ uv run pytest tests/test_spec_validator.py -v
 uv run pytest --cov=validators --cov=skills --cov=pipeline tests/ --cov-report=term-missing
 ```
 
-Atualmente o projeto está com **139 testes passando**.
+Atualmente o projeto está com **142 testes passando**.
 
 ### Spec Versioning
 
@@ -232,4 +315,3 @@ head -20 spec/article_spec.yaml
 ```
 
 See `docs/spec-implementation-mapping.md` for complete rule-to-code mapping.
-
