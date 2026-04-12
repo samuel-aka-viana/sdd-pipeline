@@ -3,13 +3,19 @@ Monitor de eventos em tempo real do pipeline SDD.
 Lê o arquivo pipeline_events.jsonl e mostra o que está acontecendo.
 
 Uso:
-  python3 watch_events.py          # Mostra todos os eventos
-  python3 watch_events.py url_found # Mostra apenas URLs encontradas
+  python3 watch_events.py          # Mostra todos os eventos (one-shot)
+  python3 watch_events.py url_found # Filtra por tipo de evento
   python3 watch_events.py --tail 20 # Mostra últimos 20 eventos
+  python3 watch_events.py --watch    # Modo watch (atualiza a cada 2s)
+  python3 watch_events.py --watch=1  # Watch com intervalo customizado (segundos)
+  python3 watch_events.py --watch url_found  # Watch filtrando por tipo
+  python3 watch_events.py --help     # Mostra essa ajuda
 """
 
 import json
 import sys
+import time
+import os
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -130,6 +136,32 @@ def print_event(event: dict):
             print()
 
 
+def clear_screen():
+    """Clear terminal screen in a cross-platform way.
+    
+    Example:
+        clear_screen()  # Terminal is cleared
+    """
+    os.system('clear' if os.name != 'nt' else 'cls')
+
+
+def draw_header(watch_interval: int = None):
+    """Draw header with timestamp and optional watch indicator.
+    
+    Args:
+        watch_interval: If set, shows watch mode info with interval
+        
+    Example:
+        draw_header()  # Regular header
+        draw_header(watch_interval=2)  # Shows "Watch mode (2s)"
+    """
+    now = datetime.now().strftime("%H:%M:%S")
+    watch_info = f" | Watch mode (atualiza a cada {watch_interval}s)" if watch_interval else ""
+    print("=" * 70)
+    print(f"📊 MONITOR DE EVENTOS — {now}{watch_info}")
+    print("=" * 70)
+
+
 def stats_summary(events: list):
     """Print summary statistics from all events.
     
@@ -184,15 +216,89 @@ def stats_summary(events: list):
     print()
 
 
+def display_events(events: list, filter_type: str = None, tail: int = None):
+    """Display filtered events with summary statistics.
+    
+    Args:
+        events: List of event dicts from read_events()
+        filter_type: Optional event type filter
+        tail: Show only last N events
+        
+    Returns:
+        Filtered list of events
+        
+    Example:
+        events = read_events()
+        filtered = display_events(events, filter_type="url_found", tail=10)
+    """
+    filtered_events = events
+    
+    if filter_type:
+        filtered_events = [e for e in filtered_events if e.get("type") == filter_type]
+    
+    if tail:
+        filtered_events = filtered_events[-tail:]
+    
+    if not filtered_events:
+        print(f"❌ Nenhum evento encontrado")
+        return []
+    
+    print(f"\n📋 Mostrando {len(filtered_events)} evento(s)\n")
+    for event in filtered_events:
+        print_event(event)
+    
+    stats_summary(filtered_events)
+    return filtered_events
+
+
+def watch_mode(log_file: str, watch_interval: int, filter_type: str = None, tail: int = None):
+    """Continuously monitor events with screen updates (like 'watch' command).
+    
+    Polls log file every watch_interval seconds and redraw screen with updated data.
+    Press Ctrl+C to exit.
+    
+    Args:
+        log_file: Path to JSONL file to monitor
+        watch_interval: Seconds between updates (default 2)
+        filter_type: Optional event type filter
+        tail: Show only last N events (default: all)
+        
+    Example:
+        watch_mode("output/pipeline_events.jsonl", watch_interval=2, filter_type="url_found")
+    """
+    print(f"👀 Modo watch ativado (atualiza a cada {watch_interval}s)")
+    print(f"   Pressione Ctrl+C para sair\n")
+    
+    last_count = 0
+    
+    try:
+        while True:
+            events = read_events(log_file)
+            
+            if len(events) != last_count:
+                clear_screen()
+                draw_header(watch_interval=watch_interval)
+                display_events(events, filter_type=filter_type, tail=tail)
+                last_count = len(events)
+            
+            time.sleep(watch_interval)
+    
+    except KeyboardInterrupt:
+        print("\n\n👋 Modo watch finalizado")
+
+
 def main():
     """Entry point for watch_events.py script.
     
-    Reads all events from JSONL and displays them with optional filtering and tailing.
+    Reads events from JSONL and displays them with optional filtering, tailing, or watch mode.
     
     Usage:
         python3 watch_events.py              # All events with summary
         python3 watch_events.py url_found    # Filter by event type
         python3 watch_events.py --tail=20    # Show last 20 events
+        python3 watch_events.py --watch      # Watch mode (updates every 2s)
+        python3 watch_events.py --watch=1    # Watch with custom interval
+        python3 watch_events.py --watch url_found  # Watch with filter
         python3 watch_events.py --help       # Show usage
     """
     if len(sys.argv) > 1 and sys.argv[1] == "--help":
@@ -202,16 +308,36 @@ def main():
     log_file = "output/pipeline_events.jsonl"
     filter_type = None
     tail = None
+    watch_interval = None
 
-    for arg in sys.argv[1:]:
-        if arg.startswith("--tail"):
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg == "--watch":
+            watch_interval = 2
+        elif arg.startswith("--watch="):
+            try:
+                watch_interval = int(arg.split("=")[1])
+            except ValueError:
+                print(f"❌ Intervalo inválido: {arg}")
+                return
+        elif arg.startswith("--tail"):
             parts = arg.split("=")
             if len(parts) > 1:
-                tail = int(parts[1])
+                try:
+                    tail = int(parts[1])
+                except ValueError:
+                    print(f"❌ Valor inválido para tail: {parts[1]}")
+                    return
             else:
                 tail = 20
         elif not arg.startswith("--"):
-            filter_type = arg
+            if i == 1 and watch_interval is None:
+                filter_type = arg
+            elif i == 2 and watch_interval is not None:
+                filter_type = arg
+
+    if watch_interval is not None:
+        watch_mode(log_file, watch_interval, filter_type=filter_type, tail=tail)
+        return
 
     events = read_events(log_file)
 
@@ -220,20 +346,8 @@ def main():
         print(f"   (O pipeline está rodando? Verifique com: python3 main.py ...)")
         return
 
-    if filter_type:
-        events = [e for e in events if e.get("type") == filter_type]
-        if not events:
-            print(f"❌ Nenhum evento do tipo '{filter_type}' encontrado")
-            return
-
-    if tail:
-        events = events[-tail:]
-
-    print(f"📋 Mostrando {len(events)} evento(s)\n")
-    for event in events:
-        print_event(event)
-
-    stats_summary(events)
+    draw_header()
+    display_events(events, filter_type=filter_type, tail=tail)
 
 
 if __name__ == "__main__":
