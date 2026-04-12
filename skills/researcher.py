@@ -1,7 +1,10 @@
 import yaml
+import logging
 from pathlib import Path
 
 from llm import LLMClient
+
+logger = logging.getLogger(__name__)
 
 FOCUS_QUERIES: dict[str, list[str]] = {
     "comparação geral": [
@@ -127,8 +130,21 @@ MAX_CHARS_PER_SCRAPE = 4000
 
 
 class ResearcherSkill:
+    """Executa pesquisa técnica estruturada com focus e coleta de dados.
+    
+    Combina busca multiquery, scraping de URLs e análise LLM para gerar
+    relatórios de pesquisa sobre uma ferramenta.
+    """
 
     def __init__(self, search_tool, scraper_tool, memory, spec_path="spec/article_spec.yaml"):
+        """Initialize researcher with tools and configuration.
+        
+        Args:
+            search_tool: Search tool implementing search_multi() and save_urls()
+            scraper_tool: Scraper tool implementing extract_text()
+            memory: Memory system for learning lessons and logging events
+            spec_path: Path to article_spec.yaml with LLM config
+        """
         self.search = search_tool
         self.scraper = scraper_tool
         self.memory = memory
@@ -141,23 +157,53 @@ class ResearcherSkill:
         self.temp = temperatures["researcher"]
         self.timeout = timeouts.get("researcher", timeouts.get("default", 300))
 
-    # ------------------------------------------------------------------
-    # público
-    # ------------------------------------------------------------------
     def run(self, tool, alternative="", foco="comparação geral", questoes=None):
+        """Execute research pipeline for a tool.
+        
+        Builds search queries, scrapes URLs, learns from memory, calls LLM researcher,
+        and logs event with stats.
+        
+        Args:
+            tool: Tool/technology to research (e.g., "DuckDB")
+            alternative: Alternative tool for comparison (e.g., "Polars")
+            foco: Research focus from FOCUS_QUERIES keys
+            questoes: Optional list of custom questions to include
+            
+        Returns:
+            LLM-generated research report as string
+            
+        Example:
+            researcher = ResearcherSkill(search_tool, scraper, memory)
+            report = researcher.run(
+                "DuckDB", 
+                alternative="Polars",
+                foco="comparação geral",
+                questoes=["streaming support?", "GPU acceleration?"]
+            )
+        """
         questoes = questoes or []
+        logger.debug(f"Starting research for tool: {tool}, foco: {foco}")
+        
         queries = self._build_queries(tool, alternative, foco, questoes)
+        logger.debug(f"Built {len(queries)} search queries")
 
         results_by_query = self.search.search_multi(queries)
+        logger.debug(f"Got search results for {len(results_by_query)} queries")
+        
         self.search.save_urls(results_by_query, f"output/urls_{tool}.txt")
 
         context = self._build_context(results_by_query)
+        logger.debug(f"Context built: {len(context)} chars, scrape_stats: {self._last_scrape_stats}")
+        
         lessons = self.memory.get_lessons_for_prompt()
+        if lessons:
+            logger.debug(f"Using learned lessons from memory")
 
         questoes_block = ""
         if questoes:
             lista = "\n".join(f"- {q}" for q in questoes)
             questoes_block = f"\nBusque dados específicos para responder:\n{lista}\n"
+            logger.debug(f"Added {len(questoes)} custom questions to prompt")
 
         prompt = f"""Você é um pesquisador técnico. Analise os dados abaixo sobre {tool}.
 Foco desta pesquisa: {foco}
@@ -198,6 +244,7 @@ Produza o relatório:
 ## ALTERNATIVAS MENCIONADAS
 [ferramentas comparadas nos resultados]
 """
+        logger.debug(f"Calling LLM researcher (timeout: {self.timeout}s, temp: {self.temp})")
         resp = self.llm.generate(
             role="researcher",
             model=self.model,
@@ -205,6 +252,7 @@ Produza o relatório:
             temperature=self.temp,
             timeout=self.timeout,
         )
+        logger.debug(f"LLM response received: {len(resp.response)} chars")
 
         self.memory.log_event("research_done", {
             "tool": tool,
@@ -214,10 +262,24 @@ Produza o relatório:
         })
         return resp.response
 
-    # ------------------------------------------------------------------
-    # queries
-    # ------------------------------------------------------------------
     def _build_queries(self, tool, alternative, foco, questoes):
+        """Build list of search queries from FOCUS_QUERIES templates.
+        
+        Substitutes {tool} and {alternative} placeholders and appends custom questions.
+        
+        Args:
+            tool: Tool name to substitute
+            alternative: Alternative tool name
+            foco: Focus key to lookup FOCUS_QUERIES
+            questoes: Custom questions to append (max 4)
+            
+        Returns:
+            List of formatted query strings
+            
+        Example:
+            queries = researcher._build_queries("DuckDB", "Polars", "comparação geral", [])
+            # Returns ~10-14 queries about DuckDB vs Polars
+        """
         templates = FOCUS_QUERIES.get(foco, DEFAULT_QUERIES)
         alt = alternative or "alternatives"
         queries = [
@@ -228,15 +290,42 @@ Produza o relatório:
             queries.append(f"{tool} {q}")
         return queries
 
-    # ------------------------------------------------------------------
-    # contexto
-    # ------------------------------------------------------------------
     def _build_context(self, results_by_query):
+        """Scrape URLs and build context string for LLM analysis.
+        
+        Extracts text from URLs, skips non-useful domains, tracks scraping stats,
+        and logs events to PipelineLogger for real-time monitoring.
+        
+        Max 10 URLs scraped per tool; uses search snippets as fallback if scrape fails.
+        Each URL limited to 4000 chars.
+        
+        Args:
+            results_by_query: Dict from search_tool.search_multi() with format:
+                {query: [{"url": "...", "snippet": "...", ...}, ...]}
+                
+        Returns:
+            Multi-line context string with scraped content, ready for LLM prompt
+            
+        Sets self._last_scrape_stats dict with {ok, fail, skipped} counts
+            
+        Example:
+            context = researcher._build_context(search_results)
+            # Returns formatted context with real-time event logging
+        """
+        import time as time_module
+        
         lines = []
         seen_urls: set[str] = set()
         scrape_ok = 0
         scrape_fail = 0
         total_scrapes = 0
+        log_obj = None
+        
+        try:
+            from logger import PipelineLogger
+            log_obj = PipelineLogger()
+        except:
+            pass
 
         for query, results in results_by_query.items():
             lines.append(f"\n### Busca: {query}")
@@ -246,6 +335,8 @@ Produza o relatório:
                 if not url.startswith("http") or url in seen_urls:
                     continue
                 if any(d in url for d in SKIP_DOMAINS):
+                    if log_obj:
+                        log_obj.found_url(url, status="skipped")
                     continue
                 seen_urls.add(url)
 
@@ -253,10 +344,16 @@ Produza o relatório:
                     lines.append(f"URL: {url}")
                     lines.append(f"Resumo: {r.get('snippet', '')}")
                     lines.append("---")
+                    if log_obj:
+                        title = r.get('snippet', '')[:40]
+                        log_obj.found_url(url, title=title, status="ok")
                     continue
 
                 total_scrapes += 1
+                
+                scrape_start = time_module.time()
                 result = self.scraper.extract_text(url)
+                scrape_elapsed = time_module.time() - scrape_start
 
                 if result["status"] == "ok":
                     scrape_ok += 1
@@ -265,16 +362,22 @@ Produza o relatório:
                     lines.append(f"URL: {url}{tag}")
                     lines.append(f"Conteúdo Extraído:\n{text}")
                     lines.append("---")
+                    if log_obj:
+                        title = text.split('\n')[0][:40] if text else ""
+                        log_obj.found_url(url, title=title, status="ok", elapsed=scrape_elapsed)
                 else:
                     scrape_fail += 1
                     self.memory.log_event("scrape_failed", {
                         "url": url, "status": result["status"],
+                        "elapsed_seconds": scrape_elapsed
                     })
                     snippet = r.get("snippet", "")
                     if snippet:
                         lines.append(f"URL: {url} [SCRAPE_FALHOU: {result['status']}]")
                         lines.append(f"Resumo (fallback): {snippet}")
                         lines.append("---")
+                    if log_obj:
+                        log_obj.found_url(url, title=f"[{result['status']}]", status="scrape_failed", elapsed=scrape_elapsed)
 
         self._last_scrape_stats = {
             "ok": scrape_ok,
