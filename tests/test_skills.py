@@ -1,8 +1,3 @@
-import pytest
-from pathlib import Path
-import yaml
-
-
 class TestResearcherSkill:
     """Test that ResearcherSkill returns required fields per spec"""
 
@@ -197,6 +192,6 @@ class TestPipelineIntegration:
         assert "pipeline" in spec
         assert "timeout_total_seconds" in spec["pipeline"]
         timeout = spec["pipeline"]["timeout_total_seconds"]
-        assert timeout == 900, "Total pipeline timeout should be 15 minutes"
+        assert timeout == 1800, "Total pipeline timeout should be 30 minutes"
         assert isinstance(timeout, int)
         assert timeout > 0

@@ -116,8 +116,8 @@ analysis:
 pipeline:
   # timeout global da execução inteira (segundos).
   # null/descomente para desabilitar limite total.
-  timeout_total_seconds: 900
-  max_iterations: 3
+  timeout_total_seconds: 1800
+  max_iterations: 5
 
 # ── Modelos ──────────────────────────────────────────────────────
 # Fonte principal: .env (LLM_MODEL_RESEARCHER/ANALYST/WRITER/CRITIC)
@@ -126,9 +126,9 @@ pipeline:
 # ── Opção 1: OpenRouter free (ATUAL — descomentado) ─────────────
 models:
   researcher: "nousresearch/hermes-3-llama-3.1-405b:free"
-  analyst:    "nousresearch/hermes-3-llama-3.1-405b:free"
-  writer:     "nousresearch/hermes-3-llama-3.1-405b:free"
-  critic:     "nousresearch/hermes-3-llama-3.1-405b:free"
+  analyst: "z-ai/glm-4.5-air:free"
+  writer: "z-ai/glm-4.5-air:free"
+  critic: "nousresearch/hermes-3-llama-3.1-405b:free"
 
 # ── Opção 2: Ollama local ───────────────────────────────────────
 # 3a) 8 GB RAM, CPU only (descomente para usar)
@@ -162,18 +162,18 @@ llm:
   provider: "openrouter_free"
   timeout:
     researcher: 600
-    analyst:    600
-    writer:     600
-    critic:     600
-    default:   600
+    analyst: 600
+    writer: 900
+    critic: 900
+    default: 600
   temperature:
     researcher: 0.1
-    analyst:    0.1
-    writer:     0.3
-    critic:     0.0
+    analyst: 0.1
+    writer: 0.3
+    critic: 0.0
   context_length:
     default: 8192
-    writer:  16384
+    writer: 16384
   providers:
     openrouter:
       base_url: "https://openrouter.ai/api/v1"

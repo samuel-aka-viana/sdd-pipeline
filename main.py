@@ -9,6 +9,7 @@ from pipeline import SDDPipeline
 
 load_dotenv()
 console = Console()
+MENU_INDEX_START = 1
 
 SECOES_PADRAO = [
     "tldr", "o_que_e", "requisitos", "instalacao",
@@ -30,8 +31,8 @@ FOCOS_DISPONIVEIS = [
 
 def perguntar_foco() -> str:
     console.print("\n[dim]Focos disponíveis:[/dim]")
-    for i, f in enumerate(FOCOS_DISPONIVEIS, 1):
-        console.print(f"  [cyan]{i}.[/cyan] {f}")
+    for menu_index, foco_disponivel in enumerate(FOCOS_DISPONIVEIS, MENU_INDEX_START):
+        console.print(f"  [cyan]{menu_index}.[/cyan] {foco_disponivel}")
 
     escolha = Prompt.ask(
         "\n[bold]Foco da pesquisa[/bold] [dim](número ou texto livre, enter para padrão)[/dim]",
@@ -42,9 +43,9 @@ def perguntar_foco() -> str:
         return "comparação geral"
 
     if escolha.strip().isdigit():
-        idx = int(escolha.strip()) - 1
-        if 0 <= idx < len(FOCOS_DISPONIVEIS):
-            return FOCOS_DISPONIVEIS[idx]
+        foco_index = int(escolha.strip()) - MENU_INDEX_START
+        if 0 <= foco_index < len(FOCOS_DISPONIVEIS):
+            return FOCOS_DISPONIVEIS[foco_index]
 
     return escolha.strip()
 
@@ -58,51 +59,51 @@ def perguntar_questoes() -> list[str]:
     console.print("[dim]  → docker-compose funciona sem mudanças?[/dim]")
     console.print("[dim]  → qual tem menor uso de RAM em idle?[/dim]\n")
 
-    items = []
-    i = 1
+    perguntas = []
+    pergunta_index = MENU_INDEX_START
     while True:
-        q = Prompt.ask(f"  [cyan]Pergunta {i}[/cyan]", default="")
-        if not q.strip():
+        pergunta = Prompt.ask(f"  [cyan]Pergunta {pergunta_index}[/cyan]", default="")
+        if not pergunta.strip():
             break
-        items.append(q.strip())
-        i += 1
-    return items
+        perguntas.append(pergunta.strip())
+        pergunta_index += 1
+    return perguntas
 
 
 def coletar_validacoes() -> list[str]:
     console.print("\n[dim]Digite critérios que o artigo DEVE conter.")
     console.print("[dim]Enter vazio para terminar.\n")
 
-    items = []
-    i = 1
+    criterios = []
+    criterio_index = MENU_INDEX_START
     while True:
-        v = Prompt.ask(f"  [cyan]Critério {i}[/cyan]", default="")
-        if not v.strip():
+        criterio = Prompt.ask(f"  [cyan]Critério {criterio_index}[/cyan]", default="")
+        if not criterio.strip():
             break
-        items.append(v.strip())
-        i += 1
-    return items
+        criterios.append(criterio.strip())
+        criterio_index += 1
+    return criterios
 
 
 def exibir_resumo(ferramentas, contexto, foco, questoes, validacoes):
-    t = Table(show_header=False, box=None, padding=(0, 2))
-    t.add_column(style="dim", width=16)
-    t.add_column(style="white")
+    resumo_table = Table(show_header=False, box=None, padding=(0, 2))
+    resumo_table.add_column(style="dim", width=16)
+    resumo_table.add_column(style="white")
 
-    t.add_row("Ferramentas", f"[yellow]{ferramentas}[/yellow]")
-    t.add_row("Contexto",    f"[yellow]{contexto}[/yellow]")
-    t.add_row("Foco",        f"[cyan]{foco}[/cyan]")
-    t.add_row(
+    resumo_table.add_row("Ferramentas", f"[yellow]{ferramentas}[/yellow]")
+    resumo_table.add_row("Contexto",    f"[yellow]{contexto}[/yellow]")
+    resumo_table.add_row("Foco",        f"[cyan]{foco}[/cyan]")
+    resumo_table.add_row(
         "O artigo deve\nresponder",
-        "\n".join(f"→ {q}" for q in questoes) if questoes else "[dim]sem perguntas adicionais[/dim]",
+        "\n".join(f"→ {pergunta}" for pergunta in questoes) if questoes else "[dim]sem perguntas adicionais[/dim]",
     )
-    t.add_row(
+    resumo_table.add_row(
         "Validações",
-        "\n".join(f"☐ {v}" for v in validacoes) if validacoes else "[dim]nenhuma[/dim]",
+        "\n".join(f"☐ {validacao}" for validacao in validacoes) if validacoes else "[dim]nenhuma[/dim]",
     )
 
     console.print()
-    console.print(Panel(t, title="[bold cyan]Resumo[/bold cyan]", border_style="cyan"))
+    console.print(Panel(resumo_table, title="[bold cyan]Resumo[/bold cyan]", border_style="cyan"))
     console.print()
 
 
@@ -117,8 +118,8 @@ def checklist_pos_execucao(validacoes: list[str], output_path: str):
     console.print(f"[dim]Artigo: {output_path}[/dim]\n")
 
     aprovados = 0
-    for v in validacoes:
-        ok = Confirm.ask(f"  [white]{v}[/white]")
+    for validacao in validacoes:
+        ok = Confirm.ask(f"  [white]{validacao}[/white]")
         if ok:
             aprovados += 1
             console.print("  [green]✓[/green]\n")
@@ -155,7 +156,7 @@ def main():
         console.print("[dim]Cancelado.[/dim]")
         sys.exit(0)
 
-    pipeline    = SDDPipeline()
+    pipeline    = SDDPipeline(verbosity="minimal")
     output_path = pipeline.run(
         ferramentas=ferramentas,
         contexto=contexto,

@@ -129,7 +129,7 @@ def print_event(event: dict):
         print(f" {tool}: {n_results} results from {n_queries} queries")
 
     else:
-        details = {k: v for k, v in event.items() if k not in ["timestamp", "type"]}
+        details = {key: value for key, value in event.items() if key not in ["timestamp", "type"]}
         if details:
             print(f" {details}")
         else:
@@ -184,12 +184,12 @@ def stats_summary(events: list):
         counts[evt.get("type", "unknown")] += 1
 
     print("\nTipos de eventos encontrados:")
-    for event_type, count in sorted(counts.items(), key=lambda x: x[1], reverse=True):
+    for event_type, count in sorted(counts.items(), key=lambda type_count_pair: type_count_pair[1], reverse=True):
         print(f"  {event_type:20}: {count:3} evento(s)")
 
-    urls_ok = sum(1 for e in events if e.get("type") == "url_found" and e.get("status") == "ok")
-    urls_failed = sum(1 for e in events if e.get("type") == "url_found" and e.get("status") == "scrape_failed")
-    urls_skipped = sum(1 for e in events if e.get("type") == "url_found" and e.get("status") == "skipped")
+    urls_ok = sum(1 for event_item in events if event_item.get("type") == "url_found" and event_item.get("status") == "ok")
+    urls_failed = sum(1 for event_item in events if event_item.get("type") == "url_found" and event_item.get("status") == "scrape_failed")
+    urls_skipped = sum(1 for event_item in events if event_item.get("type") == "url_found" and event_item.get("status") == "skipped")
 
     print(f"\n🔗 URLs encontradas:")
     print(f"  ✓ OK (extraído): {urls_ok}")
@@ -197,9 +197,9 @@ def stats_summary(events: list):
     print(f"  ⊘ Pulado: {urls_skipped}")
 
     elapsed_times = []
-    for e in events:
-        if e.get("type") == "url_found" and e.get("elapsed_seconds"):
-            elapsed_times.append(e.get("elapsed_seconds"))
+    for event_item in events:
+        if event_item.get("type") == "url_found" and event_item.get("elapsed_seconds"):
+            elapsed_times.append(event_item.get("elapsed_seconds"))
 
     if elapsed_times:
         print(f"\n⏱️  Tempo de scraping:")
@@ -234,7 +234,10 @@ def display_events(events: list, filter_type: str = None, tail: int = None):
     filtered_events = events
     
     if filter_type:
-        filtered_events = [e for e in filtered_events if e.get("type") == filter_type]
+        filtered_events = [
+            event_item for event_item in filtered_events
+            if event_item.get("type") == filter_type
+        ]
     
     if tail:
         filtered_events = filtered_events[-tail:]

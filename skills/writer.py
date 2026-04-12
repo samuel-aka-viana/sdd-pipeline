@@ -54,7 +54,7 @@ ATENÇÃO: O artigo anterior foi REJEITADO por conter os problemas acima.
 
         questoes_block = ""
         if questoes:
-            lista = "\n".join(f"- {q}" for q in questoes)
+            lista = "\n".join(f"- {question}" for question in questoes)
             questoes_block = f"""
 O artigo DEVE responder explicitamente estas perguntas:
 {lista}

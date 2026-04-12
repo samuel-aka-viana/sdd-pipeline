@@ -1,11 +1,9 @@
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from validators.spec_validator import SpecValidator, ValidationResult
+from unittest.mock import patch
+from validators.spec_validator import ValidationResult
 from skills.critic import CriticSkill
 from memory.memory_store import MemoryStore
 import tempfile
-import json
-from pathlib import Path
 
 
 class TestPipelineE2E:
@@ -313,7 +311,7 @@ Content.
         assert result1.passed == result2.passed
         assert result1.spec_references == result2.spec_references
 
-    def test_pipeline_feedback_loop_simulation(self, critic, memory):
+    def test_pipeline_feedback_loop_simulation(self, critic):
         """
         Simulates a feedback loop where article is corrected based on validation feedback.
         
@@ -332,7 +330,7 @@ Description.
         
         # Simulate correction based on feedback
         problems = result_v1.problems
-        assert any("Seção" in p for p in problems)
+        assert any("Seção" in problem_text for problem_text in problems)
         
         # Second iteration: article corrected
         article_v2 = """
@@ -454,7 +452,7 @@ Conclusion.
 - https://example2.io
 - https://example3.io
 """
-        result = critic.validator.validate(valid_article)
+        critic.validator.validate(valid_article)
         
         # Spec should be loaded
         assert critic.validator.spec is not None

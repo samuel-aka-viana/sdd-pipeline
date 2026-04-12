@@ -26,23 +26,23 @@ class AnalystSkill:
         questoes = questoes or []
         logger.debug(f"Starting analysis for: {ferramentas}, contexto: {contexto}, foco: {foco}")
         
-        tools = [t.strip() for t in ferramentas.lower().replace(" e ", ",").split(",") if t.strip()]
+        tools = [tool_name.strip() for tool_name in ferramentas.lower().replace(" e ", ",").split(",") if tool_name.strip()]
         is_single = len(tools) == 1
         is_integration = foco == "integração"
         logger.debug(f"Parsed tools: {tools}, is_single: {is_single}, is_integration: {is_integration}")
 
         questoes_block = ""
         if questoes:
-            lista = "\n".join(f"- {q}" for q in questoes)
+            lista = "\n".join(f"- {question}" for question in questoes)
             questoes_block = f"\nA análise deve fornecer dados para responder:\n{lista}\n"
             logger.debug(f"Added {len(questoes)} custom analysis questions")
 
         if is_single:
-            table_block = self._single_tool_template(tools[0], foco)
+            table_block = self.single_tool_template(tools[0], foco)
         elif is_integration:
-            table_block = self._integration_template(tools, foco)
+            table_block = self.integration_template(tools)
         else:
-            table_block = self._comparison_template(tools, foco)
+            table_block = self.comparison_template(tools)
         logger.debug(f"Selected template: {'single' if is_single else ('integration' if is_integration else 'comparison')}")
 
         prompt = f"""Você é um analista técnico. Analise os dados de pesquisa abaixo.
@@ -95,19 +95,20 @@ REGRAS CRÍTICAS:
         })
         return resp.response
 
-    def _comparison_template(self, tools, foco):
-        t1, t2 = tools[0], tools[1] if len(tools) > 1 else "alternativa"
+    def comparison_template(self, tools):
+        primary_tool_name = tools[0]
+        secondary_tool_name = tools[1] if len(tools) > 1 else "alternativa"
         return f"""## TABELA DE REQUISITOS
 [Se há dados concretos de RAM/CPU, faça a tabela.
  Se não há requisitos oficiais, escreva um parágrafo curto explicando por quê.]
 
 ## TABELA COMPARATIVA
-| Critério | {t1} | {t2} |
+| Critério | {primary_tool_name} | {secondary_tool_name} |
 |----------|------|------|
 [mínimo 5 critérios — APENAS os que têm dados para ambas as colunas]
 [se só tem dado pra um lado, remova a linha]"""
 
-    def _integration_template(self, tools, foco):
+    def integration_template(self, tools):
         return f"""## TABELA DE REQUISITOS
 [requisitos combinados do stack completo]
 
@@ -119,7 +120,7 @@ REGRAS CRÍTICAS:
 |---------|------|------|---------------|
 [mínimo 4 aspectos com dados concretos de como integrar]"""
 
-    def _single_tool_template(self, tool, foco):
+    def single_tool_template(self, tool, foco):
         return f"""## TABELA DE REQUISITOS
 [Se há dados concretos de RAM/CPU, faça a tabela.
  Se não há requisitos oficiais, escreva um parágrafo curto explicando por quê.]

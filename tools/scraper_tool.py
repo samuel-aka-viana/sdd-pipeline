@@ -30,22 +30,22 @@ class ScraperTool:
 
     def extract_text(self, url: str) -> dict:
         if HAS_CFFI:
-            result = self._cffi_fetch(url)
+            result = self.cffi_fetch(url)
             if result["status"] == "ok":
                 return result
 
-        result = self._trafilatura(url)
+        result = self.trafilatura_extract(url)
         if result["status"] == "ok":
             return result
 
         if self.use_fallback and HAS_PLAYWRIGHT:
-            pw_result = self._playwright(url)
-            if pw_result["status"] == "ok":
-                return pw_result
+            playwright_result = self.playwright_extract(url)
+            if playwright_result["status"] == "ok":
+                return playwright_result
 
         return result
 
-    def _cffi_fetch(self, url: str) -> dict:
+    def cffi_fetch(self, url: str) -> dict:
         try:
             resp = cffi_requests.get(url, impersonate="chrome", timeout=self.timeout)
             if resp.status_code != 200:
@@ -72,7 +72,7 @@ class ScraperTool:
             log.debug("cffi failed: %s — %s", url, e)
             return {"url": url, "text": "", "status": f"cffi_error: {e}"}
 
-    def _trafilatura(self, url: str) -> dict:
+    def trafilatura_extract(self, url: str) -> dict:
         try:
             downloaded = trafilatura.fetch_url(url, config=self.config)
             if not downloaded:
@@ -99,7 +99,7 @@ class ScraperTool:
         except Exception as e:
             return {"url": url, "text": "", "status": f"trafilatura_error: {e}"}
 
-    def _playwright(self, url: str) -> dict:
+    def playwright_extract(self, url: str) -> dict:
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)

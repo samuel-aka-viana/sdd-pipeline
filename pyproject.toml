@@ -12,12 +12,14 @@ dependencies = [
     "pyyaml>=6.0.3",
     "requests>=2.32.5",
     "rich>=14.3.3",
+    "trafilatura>=2.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "ruff>=0.13.0",
 ]
 
 [tool.pytest.ini_options]
@@ -32,3 +34,13 @@ markers = [
     "e2e: Testes fim-a-fim do pipeline",
     "integration: Testes de integração entre componentes",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["F401", "F841", "C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12

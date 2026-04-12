@@ -38,14 +38,17 @@ class CriticSkill:
         if not result.passed:
             logger.info(f"Article REJECTED by deterministic layer: {len(result.problems)} problems found")
             feedback_parts = []
-            for i, problem in enumerate(result.problems):
-                spec_ref = result.spec_references[i] if i < len(result.spec_references) else ""
+            problem_entries = zip(result.problems, result.spec_references + [""] * len(result.problems))
+            for problem, spec_ref in problem_entries:
                 correction = result.corrections.get(problem, "")
                 feedback_parts.append(f"- {problem}")
-                if spec_ref:
-                    feedback_parts.append(f"  📋 Regra da Spec: {spec_ref}")
-                if correction:
-                    feedback_parts.append(f"  ✓ Correção: {correction}")
+                optional_feedback_lines = [
+                    f"  📋 Regra da Spec: {spec_ref}" if spec_ref else "",
+                    f"  ✓ Correção: {correction}" if correction else "",
+                ]
+                feedback_parts.extend(
+                    line for line in optional_feedback_lines if line
+                )
             
             detailed_feedback = "\n".join(feedback_parts)
             correction_prompt_base = self.validator.problems_as_prompt(result)
@@ -65,13 +68,13 @@ class CriticSkill:
             }
 
         logger.debug(f"Article PASSED deterministic layer. Starting semantic validation...")
-        semantic_issues = self._semantic_check(artigo, ferramentas)
+        semantic_issues = self.semantic_check(artigo, ferramentas)
 
         if semantic_issues:
             logger.info(f"Article REJECTED by semantic layer: {len(semantic_issues)} issues found")
             prompt_lines = [
                 "O artigo passou na validação estrutural mas tem problemas semânticos:",
-                *[f"- {s}" for s in semantic_issues],
+                *[f"- {issue}" for issue in semantic_issues],
                 "\nCorrija APENAS esses problemas. Mantenha o resto intacto.",
             ]
             return {
@@ -90,7 +93,7 @@ class CriticSkill:
             "report":   result.report(),
         }
 
-    def _semantic_check(self, artigo: str, ferramentas: str) -> list[str]:
+    def semantic_check(self, artigo: str, ferramentas: str) -> list[str]:
         prompt = f"""Revise este artigo sobre {ferramentas}.
 Liste APENAS problemas factuais óbvios:
 - Comando que claramente não existe nessa ferramenta
@@ -115,7 +118,7 @@ ARTIGO:
         if "SEM PROBLEMAS" in text.upper():
             return []
         return [
-            l.strip()
-            for l in text.split("\n")
-            if l.strip() and l[0].isdigit()
+            line.strip()
+            for line in text.split("\n")
+            if line.strip() and line[0].isdigit()
         ]

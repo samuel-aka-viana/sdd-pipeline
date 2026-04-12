@@ -1,13 +1,10 @@
-import pytest
-
-
 class TestPipelineTimeout:
     """Test timeout enforcement in pipeline"""
 
     def test_pipeline_respects_timeout_config(self, spec):
         """Pipeline should enforce timeout from spec"""
         timeout = spec["pipeline"]["timeout_total_seconds"]
-        assert timeout == 900, "Timeout should be 15 minutes (900 seconds)"
+        assert timeout == 1800, "Timeout should be 30 minutes (1800 seconds)"
         assert isinstance(timeout, int)
         assert timeout > 0
 
@@ -33,10 +30,10 @@ class TestPipelineRetryLogic:
         assert hasattr(SDDPipeline, 'MAX_ITERATIONS')
         assert isinstance(SDDPipeline.MAX_ITERATIONS, int)
 
-    def test_pipeline_max_iterations_is_3(self):
-        """Pipeline should retry up to 3 iterations"""
+    def test_pipeline_max_iterations_is_5(self):
+        """Pipeline should retry up to 5 iterations"""
         from pipeline import SDDPipeline
-        assert SDDPipeline.MAX_ITERATIONS == 3
+        assert SDDPipeline.MAX_ITERATIONS == 5
 
     def test_max_iterations_at_least_2(self):
         """Pipeline should allow at least 2 iterations (initial + 1 retry)"""
@@ -47,10 +44,9 @@ class TestPipelineRetryLogic:
 class TestPipelineValidation:
     """Test that pipeline validates output against spec"""
 
-    def test_pipeline_uses_spec_validator(self, spec):
+    def test_pipeline_uses_spec_validator(self):
         """Pipeline should use SpecValidator for validation"""
         from pipeline import SDDPipeline
-        from validators.spec_validator import SpecValidator
         pipeline = SDDPipeline()
         assert hasattr(pipeline, 'critic')
 
@@ -91,7 +87,7 @@ article:
   required_sections:
     - tldr
 pipeline:
-  timeout_total_seconds: 900
+  timeout_total_seconds: 1800
 research:
   scraper:
     max_chars_per_page: 4000
@@ -124,7 +120,7 @@ class TestPipelineConfiguration:
     def test_pipeline_timeout_from_spec(self, spec):
         """Pipeline should read timeout from spec"""
         expected_timeout = spec["pipeline"]["timeout_total_seconds"]
-        assert expected_timeout == 900
+        assert expected_timeout == 1800
         assert isinstance(expected_timeout, int)
 
     def test_pipeline_logger_initialized(self):

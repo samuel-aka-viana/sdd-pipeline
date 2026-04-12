@@ -183,7 +183,7 @@ class TestSpecSchema:
         except ValueError as e:
             pytest.fail(f"Pipeline should load valid spec: {e}")
 
-    def test_pipeline_rejects_invalid_spec(self, tmp_path, schema):
+    def test_pipeline_rejects_invalid_spec(self, tmp_path):
         """Pipeline raises error if spec is invalid."""
         # Create a temporary invalid spec file
         invalid_spec_path = tmp_path / "invalid_spec.yaml"

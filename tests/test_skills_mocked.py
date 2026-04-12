@@ -83,7 +83,7 @@ class TestResearcherSkillMocked:
         call_args = mock_search.search_multi.call_args
         queries = call_args[0][0]
         assert len(queries) > 0
-        assert any("docker" in q.lower() for q in queries)
+        assert any("docker" in query.lower() for query in queries)
 
     @pytest.mark.deterministic
     @patch('skills.researcher.LLMClient')
@@ -264,7 +264,7 @@ Summary.
         writer = WriterSkill(mock_memory)
         
         # Act
-        result = writer.run(
+        writer.run(
             research="research",
             analysis="analysis",
             ferramentas="docker",
@@ -294,7 +294,7 @@ Summary.
         writer = WriterSkill(mock_memory)
         
         # Act
-        result = writer.run(
+        writer.run(
             research="limited research",
             analysis="limited analysis",
             ferramentas="docker",

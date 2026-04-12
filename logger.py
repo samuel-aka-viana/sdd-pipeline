@@ -48,14 +48,34 @@ class EventLog:
         with open(self.log_file, 'a') as f:
             f.write(json.dumps(event) + '\n')
 
+    def reset(self):
+        """Clear current event log file so a new run starts with a fresh stream."""
+        self.log_file.write_text("", encoding="utf-8")
+
 
 class PipelineLogger:
 
-    def __init__(self):
-        self.console = Console()
-        self.event_log = EventLog()
+    def __init__(
+        self,
+        verbose: bool = True,
+        log_file: str = "output/pipeline_events.jsonl",
+        verbosity: str | None = None,
+        reset_on_pipeline_start: bool = True,
+    ):
+        if verbosity is None:
+            verbosity = "detailed" if verbose else "quiet"
+        self.verbosity = verbosity
+        self.verbose = verbosity != "quiet"
+        self.console = Console(quiet=not self.verbose)
+        self.event_log = EventLog(log_file=log_file)
+        self.reset_on_pipeline_start = reset_on_pipeline_start
+
+    def is_detailed(self) -> bool:
+        return self.verbosity == "detailed"
 
     def pipeline_start(self, ferramentas: str, contexto: str):
+        if self.reset_on_pipeline_start:
+            self.event_log.reset()
         self.console.print()
         self.console.print(Panel.fit(
             f"[bold cyan]SDD Pipeline[/bold cyan]\n"
@@ -129,7 +149,8 @@ class PipelineLogger:
                 raise
 
     def search_query(self, query: str):
-        self.console.print(f"   [dim]🔍 {query}[/dim]")
+        if self.is_detailed():
+            self.console.print(f"   [dim]🔍 {query}[/dim]")
         self.event_log.log_event("search_query", {"query": query})
 
     def found_url(self, url: str, title: str = "", status: str = "", elapsed: float = None):
@@ -159,7 +180,8 @@ class PipelineLogger:
         
         title_str = f" — {title[:60]}" if title else ""
         elapsed_str = f" ({elapsed:.1f}s)" if elapsed else ""
-        self.console.print(f"   {status_indicator} [cyan]{url}[/cyan]{title_str}{elapsed_str}")
+        if self.is_detailed():
+            self.console.print(f"   {status_indicator} [cyan]{url}[/cyan]{title_str}{elapsed_str}")
         
         self.event_log.log_event("url_found", {
             "url": url,
@@ -169,11 +191,12 @@ class PipelineLogger:
         })
 
     def search_done(self, tool: str, n_results: int, n_queries: int):
-        self.console.print(
-            f"   [green]✓[/green] [white]{tool}[/white] — "
-            f"[cyan]{n_results} resultados[/cyan] de "
-            f"[cyan]{n_queries} queries[/cyan]"
-        )
+        if self.is_detailed():
+            self.console.print(
+                f"   [green]✓[/green] [white]{tool}[/white] — "
+                f"[cyan]{n_results} resultados[/cyan] de "
+                f"[cyan]{n_queries} queries[/cyan]"
+            )
         self.event_log.log_event("search_done", {
             "tool": tool,
             "n_results": n_results,
@@ -191,8 +214,8 @@ class PipelineLogger:
     def critic_passed(self, layer: str, warnings: list = None):
         self.console.print(f"   [green]✓ Critic ({layer}): aprovado[/green]")
         if warnings:
-            for w in warnings:
-                self.console.print(f"   [yellow]⚠ {w}[/yellow]")
+            for warning in warnings:
+                self.console.print(f"   [yellow]⚠ {warning}[/yellow]")
         self.event_log.log_event("critic_passed", {
             "layer": layer,
             "warnings": warnings or []
@@ -200,14 +223,15 @@ class PipelineLogger:
 
     def critic_failed(self, problems: list):
         self.console.print(f"   [red]✗ Critic: {len(problems)} problema(s)[/red]")
-        for p in problems:
-            self.console.print(f"   [red]  • {p}[/red]")
+        for problem in problems:
+            self.console.print(f"   [red]  • {problem}[/red]")
         self.event_log.log_event("critic_failed", {
             "problems": problems
         })
 
     def memory_hit(self, lesson: str):
-        self.console.print(f"   [magenta]💡 Memória: {lesson[:80]}[/magenta]")
+        if self.is_detailed():
+            self.console.print(f"   [magenta]💡 Memória: {lesson[:80]}[/magenta]")
         self.event_log.log_event("memory_hit", {"lesson": lesson[:200]})
 
     def saved(self, path: str):
@@ -220,18 +244,22 @@ class PipelineLogger:
         self.event_log.log_event("pipeline_completed", {"output_path": path})
 
     def validation_report(self, result):
-        t = Table(show_header=False, box=None, padding=(0, 1))
-        t.add_column(style="bold", width=4)
-        t.add_column()
+        validation_table = Table(show_header=False, box=None, padding=(0, 1))
+        validation_table.add_column(style="bold", width=4)
+        validation_table.add_column()
 
-        for p in result.problems:
-            t.add_row("[red]✗[/red]", f"[red]{p}[/red]")
-        for w in result.warnings:
-            t.add_row("[yellow]⚠[/yellow]", f"[yellow]{w}[/yellow]")
+        table_rows = []
+        for problem in result.problems:
+            table_rows.append(("[red]✗[/red]", f"[red]{problem}[/red]"))
+        for warning in result.warnings:
+            table_rows.append(("[yellow]⚠[/yellow]", f"[yellow]{warning}[/yellow]"))
         if result.passed:
-            t.add_row("[green]✓[/green]", "[green]Todas as validações passaram[/green]")
+            table_rows.append(("[green]✓[/green]", "[green]Todas as validações passaram[/green]"))
+        for status_icon, message in table_rows:
+            validation_table.add_row(status_icon, message)
 
-        self.console.print(t)
+        if self.is_detailed():
+            self.console.print(validation_table)
         self.event_log.log_event("validation_report", {
             "passed": result.passed,
             "problems": result.problems,
@@ -243,10 +271,11 @@ class PipelineLogger:
         self.event_log.log_event("error", {"message": msg})
 
     def metrics(self, data: dict):
-        t = Table(title="Métricas", border_style="dim")
-        t.add_column("Campo", style="cyan")
-        t.add_column("Valor", style="white")
-        for k, v in data.items():
-            t.add_row(str(k), str(v))
-        self.console.print(t)
+        metrics_table = Table(title="Métricas", border_style="dim")
+        metrics_table.add_column("Campo", style="cyan")
+        metrics_table.add_column("Valor", style="white")
+        for key, value in data.items():
+            metrics_table.add_row(str(key), str(value))
+        if self.is_detailed():
+            self.console.print(metrics_table)
         self.event_log.log_event("metrics", data)

@@ -1,5 +1,4 @@
 import pytest
-from validators.spec_validator import SpecValidator
 
 
 @pytest.mark.deterministic
@@ -16,70 +15,70 @@ class TestSpecValidatorSections:
         """Article missing TLDR section should fail"""
         result = validator.validate(invalid_article_missing_tldr)
         assert not result.passed
-        assert any("tldr" in p.lower() for p in result.problems)
+        assert any("tldr" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_o_que_e_section(self, validator):
         """Article missing 'O que é' section should fail"""
         article = "# TLDR\nBrief\n# Requisitos\nContent"
         result = validator.validate(article)
         assert not result.passed
-        assert any("o que é" in p.lower() or "o_que_e" in p.lower() for p in result.problems)
+        assert any("o que é" in problem_text.lower() or "o_que_e" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_requisitos_section(self, validator):
         """Article missing Requisitos section should fail"""
         article = "# TLDR\nBrief\n# O que é\nContent\n# Instalação\nSteps"
         result = validator.validate(article)
         assert not result.passed
-        assert any("requisito" in p.lower() for p in result.problems)
+        assert any("requisito" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_instalacao_section(self, validator):
         """Article missing Instalação section should fail"""
         article = "# TLDR\nBrief\n# O que é\nContent\n# Requisitos\nReqs"
         result = validator.validate(article)
         assert not result.passed
-        assert any("instala" in p.lower() for p in result.problems)
+        assert any("instala" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_configuracao_section(self, validator):
         """Article missing Configuração section should fail"""
         article = "# TLDR\nBrief\n# O que é\nContent\n# Instalação\nSteps"
         result = validator.validate(article)
         assert not result.passed
-        assert any("configura" in p.lower() for p in result.problems)
+        assert any("configura" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_exemplo_pratico_section(self, validator):
         """Article missing Exemplo Prático section should fail"""
         article = "# TLDR\nBrief\n# Configuração\nConfig"
         result = validator.validate(article)
         assert not result.passed
-        assert any("exemplo" in p.lower() or "prático" in p.lower() for p in result.problems)
+        assert any("exemplo" in problem_text.lower() or "prático" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_armadilhas_section(self, validator):
         """Article missing Armadilhas section should fail"""
         article = "# TLDR\nBrief\n# O que é\nContent"
         result = validator.validate(article)
         assert not result.passed
-        assert any("armadilha" in p.lower() or "erro comum" in p.lower() for p in result.problems)
+        assert any("armadilha" in problem_text.lower() or "erro comum" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_otimizacoes_section(self, validator):
         """Article missing Otimizações section should fail"""
         article = "# TLDR\nBrief\n# O que é\nContent"
         result = validator.validate(article)
         assert not result.passed
-        assert any("otimiza" in p.lower() or "dica" in p.lower() for p in result.problems)
+        assert any("otimiza" in problem_text.lower() or "dica" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_conclusao_section(self, validator):
         """Article missing Conclusão section should fail"""
         article = "# TLDR\nBrief\n# O que é\nContent"
         result = validator.validate(article)
         assert not result.passed
-        assert any("conclus" in p.lower() for p in result.problems)
+        assert any("conclus" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_referencias_section(self, validator):
         """Article missing Referências section should fail"""
         article = "# TLDR\nBrief\n# O que é\nContent"
         result = validator.validate(article)
         assert not result.passed
-        assert any("referência" in p.lower() or "referencia" in p.lower() for p in result.problems)
+        assert any("referência" in problem_text.lower() or "referencia" in problem_text.lower() for problem_text in result.problems)
 
     def test_missing_all_sections(self, validator):
         """Article with no required sections should fail with multiple problems"""
@@ -99,7 +98,7 @@ class TestSpecValidatorPlaceholders:
         )
         result = validator.validate(article)
         assert not result.passed
-        assert any("[TODO" in p or "placeholder" in p.lower() for p in result.problems)
+        assert any("[TODO" in problem_text or "placeholder" in problem_text.lower() for problem_text in result.problems)
 
     def test_placeholder_Descreva_detected(self, validator, valid_article):
         """[Descreva placeholder should be detected"""
@@ -109,7 +108,7 @@ class TestSpecValidatorPlaceholders:
         )
         result = validator.validate(article)
         assert not result.passed
-        assert any("placeholder" in p.lower() for p in result.problems)
+        assert any("placeholder" in problem_text.lower() for problem_text in result.problems)
 
     def test_placeholder_X_detected(self, validator, valid_article):
         """[X] placeholder should be detected"""
@@ -213,7 +212,7 @@ class TestSpecValidatorPlaceholders:
     def test_no_placeholders_in_valid_article(self, validator, valid_article):
         """Valid article should have no placeholder problems"""
         result = validator.validate(valid_article)
-        placeholder_problems = [p for p in result.problems if "placeholder" in p.lower()]
+        placeholder_problems = [problem_text for problem_text in result.problems if "placeholder" in problem_text.lower()]
         assert len(placeholder_problems) == 0, f"Valid article has placeholder problems: {placeholder_problems}"
 
 
@@ -224,12 +223,12 @@ class TestSpecValidatorQuantitative:
         """Article must have at least 3 references (URLs)"""
         result = validator.validate(invalid_article_insufficient_refs)
         assert not result.passed
-        assert any("referência" in p.lower() or "url" in p.lower() for p in result.problems)
+        assert any("referência" in problem_text.lower() or "url" in problem_text.lower() for problem_text in result.problems)
 
     def test_three_references_passes(self, validator, valid_article):
         """Article with 3 or more references should pass reference check"""
         result = validator.validate(valid_article)
-        reference_problems = [p for p in result.problems if "referência" in p.lower() or "url" in p.lower()]
+        reference_problems = [problem_text for problem_text in result.problems if "referência" in problem_text.lower() or "url" in problem_text.lower()]
         assert len(reference_problems) == 0, f"Valid article with 3+ refs failed: {reference_problems}"
 
     def test_urls_are_counted_correctly(self, validator):
@@ -259,7 +258,7 @@ Summary
 - https://ref2.com
 """
         result = validator.validate(article)
-        reference_problems = [p for p in result.problems if "referência" in p.lower()]
+        reference_problems = [problem_text for problem_text in result.problems if "referência" in problem_text.lower()]
         assert len(reference_problems) == 0, "Article with 5 URLs should pass"
 
     def test_minimum_errors_in_armadilhas_section(self, validator):
@@ -289,7 +288,7 @@ Summary
 - https://tutorial.com
 """
         result = validator.validate(article)
-        error_warnings = [w for w in result.warnings if "erro" in w.lower()]
+        error_warnings = [warning_text for warning_text in result.warnings if "erro" in warning_text.lower()]
         assert len(error_warnings) > 0, "Should warn about insufficient errors"
 
     def test_minimum_tips_in_otimizacoes_section(self, validator):
@@ -354,13 +353,13 @@ Summary
 - https://tutorial.com
 """
         result = validator.validate(article)
-        ram_warnings = [w for w in result.warnings if "ram" in w.lower() or "gb" in w.lower()]
+        ram_warnings = [warning_text for warning_text in result.warnings if "ram" in warning_text.lower() or "gb" in warning_text.lower()]
         assert len(ram_warnings) > 0, "Should warn about high RAM requirement"
 
     def test_reasonable_ram_no_warning(self, validator, valid_article):
         """Reasonable RAM values should not trigger warnings"""
         result = validator.validate(valid_article)
-        ram_warnings = [w for w in result.warnings if "ram" in w.lower() or "gb" in w.lower()]
+        ram_warnings = [warning_text for warning_text in result.warnings if "ram" in warning_text.lower() or "gb" in warning_text.lower()]
         assert len(ram_warnings) == 0, "1GB RAM should not trigger warning"
 
 
@@ -371,19 +370,19 @@ class TestSpecValidatorURLs:
         """HTTP URLs should fail validation (must be HTTPS)"""
         result = validator.validate(invalid_article_with_http_url)
         assert not result.passed
-        assert any("https" in p.lower() or "url" in p.lower() for p in result.problems)
+        assert any("https" in problem_text.lower() or "url" in problem_text.lower() for problem_text in result.problems)
 
     def test_https_urls_pass(self, validator, valid_article):
         """HTTPS URLs should pass validation"""
         result = validator.validate(valid_article)
-        https_problems = [p for p in result.problems if "https" in p.lower() and "inválida" in p.lower()]
+        https_problems = [problem_text for problem_text in result.problems if "https" in problem_text.lower() and "inválida" in problem_text.lower()]
         assert len(https_problems) == 0
 
     def test_no_localhost_urls(self, validator, invalid_article_localhost_url):
         """Localhost URLs should fail validation"""
         result = validator.validate(invalid_article_localhost_url)
         assert not result.passed
-        assert any("localhost" in p.lower() or "inválida" in p.lower() for p in result.problems)
+        assert any("localhost" in problem_text.lower() or "inválida" in problem_text.lower() for problem_text in result.problems)
 
     def test_no_example_com_urls(self, validator):
         """example.com URLs should fail validation"""
@@ -413,7 +412,7 @@ Summary
 """
         result = validator.validate(article)
         assert not result.passed
-        assert any("inválida" in p.lower() or "exemplo" in p.lower() for p in result.problems)
+        assert any("inválida" in problem_text.lower() or "exemplo" in problem_text.lower() for problem_text in result.problems)
 
     def test_no_seu_repositorio_placeholder(self, validator):
         """'seu-repositorio' placeholder in URLs should fail"""
@@ -481,7 +480,7 @@ Summary
 - https://tutorial.com
 """
         result = validator.validate(article)
-        solution_problems = [p for p in result.problems if "solução" in p.lower()]
+        solution_problems = [problem_text for problem_text in result.problems if "solução" in problem_text.lower()]
         assert len(solution_problems) > 0, "Empty solution should fail"
 
     def test_solution_generic_fails(self, validator):
@@ -515,6 +514,8 @@ Summary
 - https://tutorial.com
 """
         result = validator.validate(article)
+        solution_problems = [problem_text for problem_text in result.problems if "solução" in problem_text.lower()]
+        assert len(solution_problems) > 0, "Generic solution should fail"
 
 
 class TestSpecValidatorCodeBlocks:
@@ -523,7 +524,7 @@ class TestSpecValidatorCodeBlocks:
     def test_code_blocks_present(self, validator, valid_article):
         """Valid article should have multiple code blocks"""
         result = validator.validate(valid_article)
-        code_warnings = [w for w in result.warnings if "código" in w.lower() or "code" in w.lower()]
+        code_warnings = [warning_text for warning_text in result.warnings if "código" in warning_text.lower() or "code" in warning_text.lower()]
         assert len(code_warnings) == 0
 
 
@@ -613,7 +614,7 @@ summary
 """
         result = validator.validate(article)
         # Should find sections despite lowercase
-        section_problems = [p for p in result.problems if "seção ausente" in p.lower()]
+        section_problems = [problem_text for problem_text in result.problems if "seção ausente" in problem_text.lower()]
         assert len(section_problems) == 0, "Should find sections in lowercase"
 
     def test_article_with_extra_sections(self, validator, valid_article):
@@ -656,7 +657,7 @@ Summary
 - https://tutorial.com
 """
         result = validator.validate(article)
-        reference_problems = [p for p in result.problems if "referência" in p.lower()]
+        reference_problems = [problem_text for problem_text in result.problems if "referência" in problem_text.lower()]
         assert len(reference_problems) == 0, "Should count multiple URLs"
 
     def test_url_with_special_characters(self, validator):
@@ -695,5 +696,5 @@ Summary
 - https://docs.com/api/reference?v=2
 """
         result = validator.validate(article)
-        reference_problems = [p for p in result.problems if "referência" in p.lower()]
+        reference_problems = [problem_text for problem_text in result.problems if "referência" in problem_text.lower()]
         assert len(reference_problems) == 0, "Should handle URLs with special chars"

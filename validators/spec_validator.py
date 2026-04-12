@@ -22,18 +22,18 @@ class ValidationResult:
         lines = []
         if self.problems:
             lines.append("PROBLEMAS (bloqueantes):")
-            for i, p in enumerate(self.problems):
-                spec_ref = self.spec_references[i] if i < len(self.spec_references) else ""
-                correction = self.corrections.get(p, "")
-                lines.append(f"  ✗ {p}")
+            for index, problem in enumerate(self.problems):
+                spec_ref = self.spec_references[index] if index < len(self.spec_references) else ""
+                correction = self.corrections.get(problem, "")
+                lines.append(f"  ✗ {problem}")
                 if spec_ref:
                     lines.append(f"    📋 Spec: {spec_ref}")
                 if correction:
                     lines.append(f"    ✓ Correção: {correction}")
         if self.warnings:
             lines.append("AVISOS (não bloqueantes):")
-            for w in self.warnings:
-                lines.append(f"  ⚠ {w}")
+            for warning in self.warnings:
+                lines.append(f"  ⚠ {warning}")
         if self.passed:
             lines.append("✓ Artigo passou em todas as validações")
         return "\n".join(lines)
@@ -43,7 +43,7 @@ class SpecValidator:
 
     def __init__(self, spec_path="spec/article_spec.yaml"):
         self.spec = yaml.safe_load(Path(spec_path).read_text())
-        self._rules = self.spec["article"]["quality_rules"]
+        self.rules = self.spec["article"]["quality_rules"]
 
     def validate(self, artigo, secoes=None):
         problems = []
@@ -80,13 +80,13 @@ class SpecValidator:
 
         for secao in secoes_ativas:
             patterns = section_patterns.get(secao, [secao.replace("_", " ")])
-            if not any(p in text_lower for p in patterns):
+            if not any(pattern in text_lower for pattern in patterns):
                 problem = f"Seção ausente: {secao}"
                 problems.append(problem)
                 spec_references.append("article.required_sections")
                 corrections[problem] = f"Adicione a seção '# {secao.replace('_', ' ').title()}' ao artigo"
 
-        for pattern in self._rules["no_placeholders"]["patterns"]:
+        for pattern in self.rules["no_placeholders"]["patterns"]:
             if pattern.lower() in text_lower:
                 problem = f"Placeholder não preenchido: '{pattern}'"
                 problems.append(problem)
@@ -94,18 +94,18 @@ class SpecValidator:
                 corrections[problem] = f"Substitua '{pattern}' por conteúdo real ou remova a linha"
 
         urls_reais = re.findall(r'https?://[^\s\)\"\'\]]+', artigo)
-        min_refs = self._rules["min_references"]
+        min_refs = self.rules["min_references"]
         if len(urls_reais) < min_refs:
             problem = f"Referências insuficientes: {len(urls_reais)} URLs, mínimo {min_refs}"
             problems.append(problem)
             spec_references.append("article.quality_rules.min_references")
             corrections[problem] = f"Adicione mais {min_refs - len(urls_reais)} URL(s) de fontes confiáveis ao artigo"
 
-        url_rules = self._rules.get("url_validation", {})
+        url_rules = self.rules.get("url_validation", {})
         block = url_rules.get("block_patterns", [])
         for url in urls_reais:
-            for bp in block:
-                if bp in url:
+            for blocked_pattern in block:
+                if blocked_pattern in url:
                     problem = f"URL inválida/placeholder: {url}"
                     problems.append(problem)
                     spec_references.append("article.quality_rules.url_validation")
@@ -115,7 +115,7 @@ class SpecValidator:
         error_markers = re.findall(
             r'(erro:|error:|armadilha|problema:|⚠|sintoma:)', text_lower
         )
-        min_errors = self._rules.get("min_errors", 2)
+        min_errors = self.rules.get("min_errors", 2)
         if len(error_markers) < min_errors:
             warning = (
                 f"Poucos erros documentados: {len(error_markers)}, "
@@ -123,7 +123,7 @@ class SpecValidator:
             )
             warnings.append(warning)
 
-        min_sol = self._rules.get("min_solution_chars", 20)
+        min_sol = self.rules.get("min_solution_chars", 20)
         armadilha_blocks = re.findall(
             r'(?:solução|solu[çc][aã]o)[:\s]*```[a-z]*\n(.*?)```',
             artigo, re.IGNORECASE | re.DOTALL
@@ -139,7 +139,7 @@ class SpecValidator:
                 spec_references.append("article.quality_rules.solution_content")
                 corrections[problem] = f"Forneça solução com código/comandos reais (mínimo {min_sol} caracteres)"
 
-        hw = self._rules.get("hardware_sanity")
+        hw = self.rules.get("hardware_sanity")
         if hw:
             max_ram = hw.get("max_ram_minimum_gb", 2)
             ram_values = re.findall(r'(\d+)\s*gb', text_lower)
@@ -159,8 +159,8 @@ class SpecValidator:
 
         table_rows = re.findall(r'\|(.+)\|', artigo)
         for row in table_rows:
-            cells = [c.strip() for c in row.split('|')]
-            if any(c == '' for c in cells if not re.match(r'^-+$', c)):
+            cells = [cell.strip() for cell in row.split('|')]
+            if any(cell == '' for cell in cells if not re.match(r'^-+$', cell)):
                 warning = "Tabela com célula vazia detectada"
                 warnings.append(warning)
                 break
@@ -177,8 +177,8 @@ class SpecValidator:
         if result.passed:
             return ""
         lines = ["O artigo tem os seguintes problemas que DEVEM ser corrigidos:"]
-        for i, p in enumerate(result.problems, 1):
-            lines.append(f"{i}. {p}")
+        for index, problem in enumerate(result.problems, 1):
+            lines.append(f"{index}. {problem}")
         lines.append(
             "\nReescreva o artigo corrigindo APENAS esses problemas."
         )

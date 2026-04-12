@@ -12,7 +12,7 @@ def spec():
 
 
 @pytest.fixture
-def validator(spec):
+def validator():
     """Create SpecValidator instance with the spec"""
     return SpecValidator("spec/article_spec.yaml")
 

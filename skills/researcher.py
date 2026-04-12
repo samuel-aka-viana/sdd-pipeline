@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from llm import LLMClient
+from logger import EventLog
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,14 @@ class ResearcherSkill:
     relatórios de pesquisa sobre uma ferramenta.
     """
 
-    def __init__(self, search_tool, scraper_tool, memory, spec_path="spec/article_spec.yaml"):
+    def __init__(
+        self,
+        search_tool,
+        scraper_tool,
+        memory,
+        spec_path="spec/article_spec.yaml",
+        pipeline_logger=None,
+    ):
         """Initialize researcher with tools and configuration.
         
         Args:
@@ -151,11 +159,25 @@ class ResearcherSkill:
         self.spec = yaml.safe_load(Path(spec_path).read_text())
         self.llm = LLMClient(spec_path)
         self.model = self.llm.model_for_role("researcher")
+        self.pipeline_logger = pipeline_logger
+        self.event_log = pipeline_logger.event_log if pipeline_logger else EventLog()
+        self.last_scrape_stats = {"ok": 0, "fail": 0, "skipped": 0}
         llm_conf = self.spec.get("llm", {})
         temperatures = llm_conf.get("temperature", self.spec.get("ollama", {}).get("temperature", {}))
         timeouts = llm_conf.get("timeout", self.spec.get("ollama", {}).get("timeout", {}))
         self.temp = temperatures["researcher"]
         self.timeout = timeouts.get("researcher", timeouts.get("default", 300))
+
+    def log_url_found(self, url: str, title: str = "", status: str = "", elapsed: float | None = None):
+        if self.pipeline_logger:
+            self.pipeline_logger.found_url(url, title=title, status=status, elapsed=elapsed)
+            return
+        self.event_log.log_event("url_found", {
+            "url": url,
+            "title": title,
+            "status": status,
+            "elapsed_seconds": elapsed,
+        })
 
     def run(self, tool, alternative="", foco="comparação geral", questoes=None):
         """Execute research pipeline for a tool.
@@ -184,7 +206,7 @@ class ResearcherSkill:
         questoes = questoes or []
         logger.debug(f"Starting research for tool: {tool}, foco: {foco}")
         
-        queries = self._build_queries(tool, alternative, foco, questoes)
+        queries = self.build_queries(tool, alternative, foco, questoes)
         logger.debug(f"Built {len(queries)} search queries")
 
         results_by_query = self.search.search_multi(queries)
@@ -192,8 +214,8 @@ class ResearcherSkill:
         
         self.search.save_urls(results_by_query, f"output/urls_{tool}.txt")
 
-        context = self._build_context(results_by_query)
-        logger.debug(f"Context built: {len(context)} chars, scrape_stats: {self._last_scrape_stats}")
+        context = self.build_context(results_by_query)
+        logger.debug(f"Context built: {len(context)} chars, scrape_stats: {self.last_scrape_stats}")
         
         lessons = self.memory.get_lessons_for_prompt()
         if lessons:
@@ -201,7 +223,7 @@ class ResearcherSkill:
 
         questoes_block = ""
         if questoes:
-            lista = "\n".join(f"- {q}" for q in questoes)
+            lista = "\n".join(f"- {question}" for question in questoes)
             questoes_block = f"\nBusque dados específicos para responder:\n{lista}\n"
             logger.debug(f"Added {len(questoes)} custom questions to prompt")
 
@@ -258,11 +280,11 @@ Produza o relatório:
             "tool": tool,
             "foco": foco,
             "queries": queries,
-            "scrape_stats": self._last_scrape_stats,
+            "scrape_stats": self.last_scrape_stats,
         })
         return resp.response
 
-    def _build_queries(self, tool, alternative, foco, questoes):
+    def build_queries(self, tool, alternative, foco, questoes):
         """Build list of search queries from FOCUS_QUERIES templates.
         
         Substitutes {tool} and {alternative} placeholders and appends custom questions.
@@ -277,20 +299,20 @@ Produza o relatório:
             List of formatted query strings
             
         Example:
-            queries = researcher._build_queries("DuckDB", "Polars", "comparação geral", [])
+            queries = researcher.build_queries("DuckDB", "Polars", "comparação geral", [])
             # Returns ~10-14 queries about DuckDB vs Polars
         """
         templates = FOCUS_QUERIES.get(foco, DEFAULT_QUERIES)
         alt = alternative or "alternatives"
         queries = [
-            q.replace("{tool}", tool).replace("{alternative}", alt)
-            for q in templates
+            query_template.replace("{tool}", tool).replace("{alternative}", alt)
+            for query_template in templates
         ]
-        for q in questoes[:4]:
-            queries.append(f"{tool} {q}")
+        for question in questoes[:4]:
+            queries.append(f"{tool} {question}")
         return queries
 
-    def _build_context(self, results_by_query):
+    def build_context(self, results_by_query):
         """Scrape URLs and build context string for LLM analysis.
         
         Extracts text from URLs, skips non-useful domains, tracks scraping stats,
@@ -306,10 +328,10 @@ Produza o relatório:
         Returns:
             Multi-line context string with scraped content, ready for LLM prompt
             
-        Sets self._last_scrape_stats dict with {ok, fail, skipped} counts
+        Sets self.last_scrape_stats dict with {ok, fail, skipped} counts
             
         Example:
-            context = researcher._build_context(search_results)
+            context = researcher.build_context(search_results)
             # Returns formatted context with real-time event logging
         """
         import time as time_module
@@ -319,34 +341,24 @@ Produza o relatório:
         scrape_ok = 0
         scrape_fail = 0
         total_scrapes = 0
-        log_obj = None
-        
-        try:
-            from logger import PipelineLogger
-            log_obj = PipelineLogger()
-        except:
-            pass
-
         for query, results in results_by_query.items():
             lines.append(f"\n### Busca: {query}")
 
-            for r in results:
-                url = r.get("url", "")
+            for result_item in results:
+                url = result_item.get("url", "")
                 if not url.startswith("http") or url in seen_urls:
                     continue
-                if any(d in url for d in SKIP_DOMAINS):
-                    if log_obj:
-                        log_obj.found_url(url, status="skipped")
+                if any(domain in url for domain in SKIP_DOMAINS):
+                    self.log_url_found(url, status="skipped")
                     continue
                 seen_urls.add(url)
 
                 if total_scrapes >= MAX_SCRAPES_PER_TOOL:
                     lines.append(f"URL: {url}")
-                    lines.append(f"Resumo: {r.get('snippet', '')}")
+                    lines.append(f"Resumo: {result_item.get('snippet', '')}")
                     lines.append("---")
-                    if log_obj:
-                        title = r.get('snippet', '')[:40]
-                        log_obj.found_url(url, title=title, status="ok")
+                    title = result_item.get('snippet', '')[:40]
+                    self.log_url_found(url, title=title, status="ok")
                     continue
 
                 total_scrapes += 1
@@ -362,24 +374,27 @@ Produza o relatório:
                     lines.append(f"URL: {url}{tag}")
                     lines.append(f"Conteúdo Extraído:\n{text}")
                     lines.append("---")
-                    if log_obj:
-                        title = text.split('\n')[0][:40] if text else ""
-                        log_obj.found_url(url, title=title, status="ok", elapsed=scrape_elapsed)
+                    title = text.split('\n')[0][:40] if text else ""
+                    self.log_url_found(url, title=title, status="ok", elapsed=scrape_elapsed)
                 else:
                     scrape_fail += 1
                     self.memory.log_event("scrape_failed", {
                         "url": url, "status": result["status"],
                         "elapsed_seconds": scrape_elapsed
                     })
-                    snippet = r.get("snippet", "")
+                    snippet = result_item.get("snippet", "")
                     if snippet:
                         lines.append(f"URL: {url} [SCRAPE_FALHOU: {result['status']}]")
                         lines.append(f"Resumo (fallback): {snippet}")
                         lines.append("---")
-                    if log_obj:
-                        log_obj.found_url(url, title=f"[{result['status']}]", status="scrape_failed", elapsed=scrape_elapsed)
+                    self.log_url_found(
+                        url,
+                        title=f"[{result['status']}]",
+                        status="scrape_failed",
+                        elapsed=scrape_elapsed,
+                    )
 
-        self._last_scrape_stats = {
+        self.last_scrape_stats = {
             "ok": scrape_ok,
             "fail": scrape_fail,
             "skipped": len(seen_urls) - total_scrapes,

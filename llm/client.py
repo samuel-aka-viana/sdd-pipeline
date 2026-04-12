@@ -21,8 +21,8 @@ class LLMRuntimeConfig:
 
 
 class LLMClient:
-    _ROLES = ("researcher", "analyst", "writer", "critic")
-    _PROVIDER_ALIASES = {
+    ROLES = ("researcher", "analyst", "writer", "critic")
+    PROVIDER_ALIASES = {
         "ollama": "ollama_local",
         "local": "ollama_local",
         "ollama_local": "ollama_local",
@@ -34,7 +34,7 @@ class LLMClient:
 
     def __init__(self, spec_path: str = "spec/article_spec.yaml"):
         self.spec = yaml.safe_load(Path(spec_path).read_text())
-        self.runtime = self._build_runtime()
+        self.runtime = self.build_runtime()
         self.provider = self.runtime.provider_engine
 
     def generate(
@@ -48,15 +48,14 @@ class LLMClient:
         timeout: int | None = None,
     ) -> LLMResponse:
         if self.runtime.provider_engine == "openrouter":
-            return self._generate_openrouter(
+            return self.generate_openrouter(
                 role=role,
                 model=model,
                 prompt=prompt,
                 temperature=temperature,
-                num_ctx=num_ctx,
                 timeout=timeout,
             )
-        return self._generate_ollama(
+        return self.generate_ollama(
             model=model,
             prompt=prompt,
             temperature=temperature,
@@ -70,11 +69,11 @@ class LLMClient:
             raise RuntimeError(f"Modelo não configurado para role: {role}")
         return model
 
-    def _build_runtime(self) -> LLMRuntimeConfig:
-        provider_mode = self._resolve_provider_mode()
+    def build_runtime(self) -> LLMRuntimeConfig:
+        provider_mode = self.resolve_provider_mode()
         provider_engine = "openrouter" if provider_mode == "openrouter_free" else "ollama"
-        provider_config = self._resolve_provider_config(provider_mode, provider_engine)
-        models = self._resolve_models()
+        provider_config = self.resolve_provider_config(provider_mode, provider_engine)
+        models = self.resolve_models()
         return LLMRuntimeConfig(
             provider_mode=provider_mode,
             provider_engine=provider_engine,
@@ -82,23 +81,23 @@ class LLMClient:
             models=models,
         )
 
-    def _resolve_provider_mode(self) -> str:
+    def resolve_provider_mode(self) -> str:
         env_provider = os.getenv("LLM_PROVIDER")
         llm_conf = self.spec.get("llm", {})
         raw_provider = env_provider or llm_conf.get("provider") or "ollama_local"
-        provider_mode = self._PROVIDER_ALIASES.get(raw_provider.strip().lower())
+        provider_mode = self.PROVIDER_ALIASES.get(raw_provider.strip().lower())
         if not provider_mode:
-            supported = ", ".join(sorted(set(self._PROVIDER_ALIASES.values())))
+            supported = ", ".join(sorted(set(self.PROVIDER_ALIASES.values())))
             raise RuntimeError(
                 f"LLM_PROVIDER inválido: {raw_provider}. Use um de: {supported}"
             )
         return provider_mode
 
-    def _resolve_models(self) -> dict[str, str]:
+    def resolve_models(self) -> dict[str, str]:
         spec_models = self.spec.get("models", {})
         models: dict[str, str] = {}
 
-        for role in self._ROLES:
+        for role in self.ROLES:
             env_key = f"LLM_MODEL_{role.upper()}"
             model = os.getenv(env_key) or spec_models.get(role)
             if not model:
@@ -109,7 +108,7 @@ class LLMClient:
 
         return models
 
-    def _resolve_provider_config(self, provider_mode: str, provider_engine: str) -> dict:
+    def resolve_provider_config(self, provider_mode: str, provider_engine: str) -> dict:
         llm_conf = self.spec.get("llm", {})
         providers = llm_conf.get("providers", {})
         conf = dict(providers.get(provider_engine, {}))
@@ -150,7 +149,7 @@ class LLMClient:
         ).rstrip("/")
         return conf
 
-    def _generate_ollama(
+    def generate_ollama(
         self,
         *,
         model: str,
@@ -189,14 +188,13 @@ class LLMClient:
         data = resp.json()
         return LLMResponse(response=data.get("response", "").strip())
 
-    def _generate_openrouter(
+    def generate_openrouter(
         self,
         *,
         role: str,
         model: str,
         prompt: str,
         temperature: float,
-        num_ctx: int | None,
         timeout: int | None,
     ) -> LLMResponse:
         conf = self.runtime.provider_config
