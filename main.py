@@ -157,12 +157,22 @@ def main():
         sys.exit(0)
 
     pipeline    = SDDPipeline(verbosity="minimal")
-    output_path = pipeline.run(
-        ferramentas=ferramentas,
-        contexto=contexto,
-        foco=foco,
-        questoes=questoes,
-    )
+    try:
+        output_path = pipeline.run(
+            ferramentas=ferramentas,
+            contexto=contexto,
+            foco=foco,
+            questoes=questoes,
+        )
+    except Exception as error:
+        console.print()
+        console.print(Panel.fit(
+            f"[bold red]Falha na execução do pipeline[/bold red]\n"
+            f"[white]{error}[/white]\n\n"
+            f"[dim]Dica: configure fallback em .env (cloud/local) para evitar rate-limit.[/dim]",
+            border_style="red",
+        ))
+        sys.exit(1)
 
     checklist_pos_execucao(validacoes, output_path)
 

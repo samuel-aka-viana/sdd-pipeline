@@ -47,21 +47,83 @@ class LLMClient:
         num_ctx: int | None = None,
         timeout: int | None = None,
     ) -> LLMResponse:
-        if self.runtime.provider_engine == "openrouter":
-            return self.generate_openrouter(
+        errors_by_provider = []
+
+        if self.runtime.provider_mode == "openrouter_free":
+            try:
+                return self.generate_openrouter(
+                    role=role,
+                    model=model,
+                    prompt=prompt,
+                    temperature=temperature,
+                    timeout=timeout,
+                )
+            except (RuntimeError, TimeoutException) as openrouter_error:
+                errors_by_provider.append(f"openrouter: {openrouter_error}")
+
+            fallback_from_cloud = self.try_ollama_cloud_fallback(
                 role=role,
-                model=model,
                 prompt=prompt,
                 temperature=temperature,
+                num_ctx=num_ctx,
                 timeout=timeout,
+                errors_by_provider=errors_by_provider,
             )
-        return self.generate_ollama(
-            model=model,
-            prompt=prompt,
-            temperature=temperature,
-            num_ctx=num_ctx,
-            timeout=timeout,
-        )
+            if fallback_from_cloud:
+                return fallback_from_cloud
+
+            fallback_from_local = self.try_ollama_local_fallback(
+                role=role,
+                primary_model=model,
+                prompt=prompt,
+                temperature=temperature,
+                num_ctx=num_ctx,
+                timeout=timeout,
+                errors_by_provider=errors_by_provider,
+            )
+            if fallback_from_local:
+                return fallback_from_local
+
+        elif self.runtime.provider_mode == "ollama_cloud":
+            cloud_result = self.try_ollama_cloud_fallback(
+                role=role,
+                prompt=prompt,
+                temperature=temperature,
+                num_ctx=num_ctx,
+                timeout=timeout,
+                errors_by_provider=errors_by_provider,
+                primary_model=model,
+            )
+            if cloud_result:
+                return cloud_result
+
+            local_result = self.try_ollama_local_fallback(
+                role=role,
+                primary_model=model,
+                prompt=prompt,
+                temperature=temperature,
+                num_ctx=num_ctx,
+                timeout=timeout,
+                errors_by_provider=errors_by_provider,
+            )
+            if local_result:
+                return local_result
+
+        else:
+            local_result = self.try_ollama_local_fallback(
+                role=role,
+                primary_model=model,
+                prompt=prompt,
+                temperature=temperature,
+                num_ctx=num_ctx,
+                timeout=timeout,
+                errors_by_provider=errors_by_provider,
+            )
+            if local_result:
+                return local_result
+
+        error_details = " | ".join(errors_by_provider) if errors_by_provider else "falha desconhecida"
+        raise RuntimeError(f"Todos os provedores de LLM falharam: {error_details}")
 
     def model_for_role(self, role: str) -> str:
         model = self.runtime.models.get(role)
@@ -157,8 +219,9 @@ class LLMClient:
         temperature: float,
         num_ctx: int | None,
         timeout: int | None,
+        provider_config: dict | None = None,
     ) -> LLMResponse:
-        conf = self.runtime.provider_config
+        conf = provider_config or self.runtime.provider_config
         base_url = conf.get("base_url", "http://localhost:11434").rstrip("/")
         payload = {
             "model": model,
@@ -252,3 +315,77 @@ class LLMClient:
                 if isinstance(part, dict)
             )
         return LLMResponse(response=str(content).strip())
+
+    def try_ollama_cloud_fallback(
+        self,
+        *,
+        role: str,
+        prompt: str,
+        temperature: float,
+        num_ctx: int | None,
+        timeout: int | None,
+        errors_by_provider: list[str],
+        primary_model: str | None = None,
+    ) -> LLMResponse | None:
+        cloud_model = self.resolve_cloud_fallback_model(role, primary_model)
+        cloud_config = self.resolve_provider_config("ollama_cloud", "ollama")
+        try:
+            return self.generate_ollama(
+                model=cloud_model,
+                prompt=prompt,
+                temperature=temperature,
+                num_ctx=num_ctx,
+                timeout=timeout,
+                provider_config=cloud_config,
+            )
+        except (RuntimeError, TimeoutException) as cloud_error:
+            errors_by_provider.append(f"ollama_cloud({cloud_model}): {cloud_error}")
+            return None
+
+    def try_ollama_local_fallback(
+        self,
+        *,
+        role: str,
+        primary_model: str,
+        prompt: str,
+        temperature: float,
+        num_ctx: int | None,
+        timeout: int | None,
+        errors_by_provider: list[str],
+    ) -> LLMResponse | None:
+        local_model = self.resolve_local_fallback_model(role, primary_model)
+        local_config = self.resolve_provider_config("ollama_local", "ollama")
+        try:
+            return self.generate_ollama(
+                model=local_model,
+                prompt=prompt,
+                temperature=temperature,
+                num_ctx=num_ctx,
+                timeout=timeout,
+                provider_config=local_config,
+            )
+        except (RuntimeError, TimeoutException) as local_error:
+            errors_by_provider.append(f"ollama_local({local_model}): {local_error}")
+            return None
+
+    def resolve_cloud_fallback_model(self, role: str, primary_model: str | None) -> str:
+        role_env = os.getenv(f"LLM_MODEL_{role.upper()}_FALLBACK_CLOUD")
+        global_env = os.getenv("LLM_MODEL_FALLBACK_CLOUD")
+        if role_env:
+            return role_env.strip()
+        if global_env:
+            return global_env.strip()
+        if primary_model and ":cloud" in primary_model:
+            return primary_model
+        return "glm5.1:cloud"
+
+    def resolve_local_fallback_model(self, role: str, primary_model: str) -> str:
+        role_env = os.getenv(f"LLM_MODEL_{role.upper()}_FALLBACK_LOCAL")
+        global_env = os.getenv("LLM_MODEL_FALLBACK_LOCAL")
+        if role_env:
+            return role_env.strip()
+        if global_env:
+            return global_env.strip()
+        if "/" not in primary_model:
+            return primary_model
+        return "qwen2.5:14b"
