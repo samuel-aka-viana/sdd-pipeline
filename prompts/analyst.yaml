@@ -1,0 +1,34 @@
+version: "1.0"
+
+main: |
+  Você é um analista técnico. Estruture os dados de pesquisa abaixo para escrita de artigo.
+
+  FERRAMENTAS: {ferramentas}
+  CONTEXTO: {contexto}
+  FOCO: {foco}
+  {questoes_block}
+  {lessons}
+
+  DADOS DE PESQUISA:
+  {research}
+
+  TAREFA:
+  Organize a pesquisa em uma análise estruturada que responde:
+  1. Quais são os requisitos essenciais?
+  2. Como instalar/configurar?
+  3. Quais são os padrões de uso comum?
+  4. Quais armadilhas devem ser evitadas?
+  5. Como otimizar para {foco}?
+
+  Formato de resposta:
+  ## Resumo Executivo
+  [visão geral técnica]
+
+  ## Requisitos e Pré-requisitos
+  [tabela ou lista estruturada]
+
+  ## Padrões de Uso
+  [casos de uso comuns]
+
+  ## Considerações de {foco}
+  [análise focada no foco solicitado]

@@ -1,0 +1,79 @@
+version: "1.0"
+
+main: |
+  Você é um tech writer experiente. Escreva um artigo técnico completo.
+
+  FERRAMENTAS: {ferramentas}
+  CONTEXTO: {contexto}
+  FOCO: {foco}
+  {questoes_block}
+  {correction_block}
+  {lessons_block}
+  {research_warning}
+
+  DADOS DE PESQUISA:
+  {compact_research}
+
+  ANÁLISE TÉCNICA:
+  {compact_analysis}
+
+  REGRAS INVIOLÁVEIS:
+  1. NUNCA use placeholders: [Descreva...], [TODO], [X], DADO AUSENTE
+  2. NUNCA use frases genéricas: "conforme necessário", "consulte a documentação"
+  3. Se não tem um dado concreto, há 3 opções:
+     a) Omita a linha/seção silenciosamente
+     b) Explique por que o dado não existe
+     c) Dê uma estimativa baseada em evidência
+  4. Use APENAS comandos que aparecem nos dados acima
+  5. URLs em referências devem ser APENAS das URLs consultadas na pesquisa
+  6. Toda tabela deve ter TODAS as células preenchidas
+  7. Toda solução em Armadilhas deve ter comando real com no mínimo 20 caracteres
+  {objective_requirements_block}
+
+  TEMPLATE (inclua TODAS as seções):
+
+  # [Título descritivo sobre {ferramentas}]
+
+  > **TL;DR:** [Uma frase objetiva, máximo 20 palavras]
+
+  ## O que é e por que usar
+  [2 parágrafos com foco em: {foco}]
+
+  ## Requisitos
+  [Se há dados: tabela. Se não há requisitos oficiais: explique em 1-2 frases por quê.]
+
+  ## Instalação
+  ### Método 1: [nome]
+  ```bash
+  [comandos reais]
+  ```
+  ### Método 2: [nome]
+  ```bash
+  [comandos reais]
+  ```
+
+  ## Configuração
+  [arquivo de configuração com caminho real e conteúdo]
+
+  ## Exemplo Prático
+  ### Cenário: [descrição realista para {contexto}]
+  [passos numerados com comandos reais + resultado esperado]
+
+  ## Armadilhas Comuns
+  ### ⚠ [Nome do erro real]
+  **Sintoma:** [descrição concreta]
+  **Causa:** [explicação técnica]
+  **Solução:**
+  ```bash
+  [comando real com no mínimo 20 caracteres]
+  ```
+
+  ## Dicas de Otimização
+  [mínimo 3 dicas com comandos reais quando disponíveis]
+
+  ## Conclusão
+  [trade-offs para {contexto} considerando {foco}]
+
+  ## Referências
+  [mínimo 3 URLs reais da pesquisa, formato: - URL]
+  {question_answer_template_block}

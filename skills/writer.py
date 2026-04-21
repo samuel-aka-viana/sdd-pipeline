@@ -3,6 +3,13 @@ import logging
 from pathlib import Path
 
 from llm import LLMClient
+from memory.research_persistence import ResearchPersistence
+
+try:
+    from memory.research_chroma import ResearchChroma
+    HAS_CHROMA = True
+except ImportError:
+    HAS_CHROMA = False
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +21,8 @@ class WriterSkill:
         self.spec   = yaml.safe_load(Path(spec_path).read_text())
         self.llm    = LLMClient(spec_path)
         self.model  = self.llm.model_for_role("writer")
+        self.persistence = ResearchPersistence()
+        self.chroma = ResearchChroma() if HAS_CHROMA else None
         llm_conf = self.spec.get("llm", {})
         temperatures = llm_conf.get("temperature", self.spec.get("ollama", {}).get("temperature", {}))
         timeouts = llm_conf.get("timeout", self.spec.get("ollama", {}).get("timeout", {}))
@@ -22,9 +31,11 @@ class WriterSkill:
         self.temp   = temperatures["writer"]
         self.timeout = timeouts.get("writer", timeouts.get("default", 300))
         self.ctx_len = context_length.get("writer", context_length.get("default", 8192))
+        # INCREASED LIMITS — now 12000 for research and 12000 for analysis
         self.max_research_chars = writer_input.get("max_research_chars", 12000)
-        self.max_analysis_chars = writer_input.get("max_analysis_chars", 6000)
-        self.max_correction_chars = writer_input.get("max_correction_chars", 2500)
+        self.max_analysis_chars = writer_input.get("max_analysis_chars", 12000)
+        self.max_correction_chars = writer_input.get("max_correction_chars", 3500)
+        self.truncation_stats = {"research": None, "analysis": None, "correction": None}
 
     def run(self, research, analysis, ferramentas, contexto,
             foco="comparação geral", questoes=None,
@@ -87,6 +98,9 @@ Cada resposta deve aparecer claramente no texto.
 
         lessons_block = f"\n{lessons}\n" if lessons else ""
 
+        # NEW: Get writing examples from Chroma for better article structure
+        writing_examples_block = self._get_writing_examples_block(ferramentas, foco)
+
         research_warning = ""
         if research_quality == "weak":
             logger.warning(f"Research quality is WEAK - warning writer to not invent data")
@@ -111,6 +125,7 @@ FOCO: {foco}
 {questoes_block}
 {correction_block}
 {lessons_block}
+{writing_examples_block}
 {research_warning}
 
 DADOS DE PESQUISA:
@@ -246,11 +261,63 @@ TEMPLATE (inclua TODAS as seções):
         joined_requirements = "\n".join(requirements)
         return f"\nREQUISITOS OBJETIVOS DE COBERTURA:\n{joined_requirements}\n"
 
+    def _get_writing_examples_block(self, ferramentas: str, foco: str) -> str:
+        """Fetch well-written article examples from Chroma for inspiration.
+
+        Uses semantic search to find similar articles and extract their structure.
+        Injects as writing style guide into the prompt.
+        """
+        if not self.chroma:
+            return ""
+
+        try:
+            # Search for articles about same tool with good structure
+            query = f"{ferramentas} artigo bem escrito técnico estrutura"
+            results = self.chroma.query_similar(
+                query_text=query,
+                k=2,
+                distance_threshold=0.25,
+            )
+
+            if not results:
+                return ""
+
+            examples_block = "\n## EXEMPLOS DE ARTIGOS BEM ESCRITOS (para referência de estilo):\n"
+            for i, result in enumerate(results[:2], 1):
+                # Extract summary from result
+                text_preview = result.get("text", "")[:300]
+                title = result.get("title", "Sem título")
+                url = result.get("url", "")
+                similarity = result.get("similarity", 0)
+
+                examples_block += f"\n**Exemplo {i}:** {title} (similaridade: {similarity:.2f})\n"
+                examples_block += f"```\n{text_preview}...\n```\n"
+                if url:
+                    examples_block += f"Fonte: {url}\n"
+
+            examples_block += "\nUse esses exemplos como referência para estrutura e nível de detalhe.\n"
+            logger.debug(f"Injected {len(results)} writing examples from Chroma")
+            self.memory.log_event("writer_examples_injected", {
+                "query": query,
+                "examples_found": len(results),
+            })
+            return examples_block
+
+        except Exception as e:
+            logger.debug(f"Failed to get writing examples from Chroma: {e}")
+            return ""
+
     def compact_text_block(self, text: str, max_chars: int, label: str) -> str:
+        """Compact text block and log truncation stats.
+
+        Uses 70/30 split (head/tail) to preserve beginning and end context.
+        Logs detailed truncation metrics for observability.
+        """
         content = (text or "").strip()
         if len(content) <= max_chars:
             return content
 
+        original_len = len(content)
         head_size = int(max_chars * 0.7)
         tail_size = max_chars - head_size
         compacted_content = (
@@ -258,7 +325,32 @@ TEMPLATE (inclua TODAS as seções):
             f"[... {label} truncado para caber no contexto ...]\n\n"
             f"{content[-tail_size:]}"
         )
+
+        lost_chars = original_len - len(compacted_content)
+        loss_pct = (lost_chars / original_len) * 100
+
+        # Log detailed truncation metrics
         logger.warning(
-            f"Writer input truncated for {label}: {len(content)} -> {len(compacted_content)} chars"
+            f"⚠️  TRUNCATION [{label}]: {original_len:,} → {len(compacted_content):,} chars "
+            f"({loss_pct:.1f}% lost) | limit={max_chars:,}"
         )
+
+        # Store stats for debugging
+        label_key = label.lower().replace(" de ", "").replace("dados ", "").replace("técnica", "analysis")
+        self.truncation_stats[label_key] = {
+            "original_chars": original_len,
+            "final_chars": len(compacted_content),
+            "lost_chars": lost_chars,
+            "loss_pct": loss_pct,
+            "limit": max_chars,
+        }
+
+        self.memory.log_event("writer_truncation", {
+            "label": label,
+            "original": original_len,
+            "final": len(compacted_content),
+            "lost": lost_chars,
+            "loss_pct": f"{loss_pct:.1f}%",
+        })
+
         return compacted_content

@@ -3,6 +3,7 @@ import logging
 import json
 from pathlib import Path
 from ddgs import DDGS
+from tools.source_ranker import SourceRanker
 
 log = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class SearchTool:
         cache_enabled: bool = True,
         cache_ttl_seconds: int = 86400,
         cache_path: str = ".memory/search_cache.json",
+        rank_sources: bool = True,
     ):
         self.num = results_per_query
         self.cache_enabled = cache_enabled
@@ -25,6 +27,7 @@ class SearchTool:
         self.cache_path = Path(cache_path)
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         self.cache_index = self.load_cache()
+        self.ranker = SourceRanker() if rank_sources else None
 
     def search(self, query: str, num: int | None = None, force_refresh: bool = False) -> list[dict]:
         num = num or self.num
@@ -48,6 +51,12 @@ class SearchTool:
                     }
                     for result_item in raw
                 ]
+
+                # Rank sources: prioritize official docs (60%) + technical articles (40%)
+                if self.ranker and results:
+                    results = self.ranker.rank_results(results)
+                    log.debug(f"Source distribution: {self.ranker.get_tier_distribution(results)}")
+
                 if self.cache_enabled and results:
                     self.cache_index[cache_key] = {
                         "query": query,

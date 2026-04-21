@@ -132,6 +132,66 @@ def print_event(event: dict):
         n_queries = event.get("n_queries", "?")
         print(f" {tool}: {n_results} results from {n_queries} queries")
 
+    elif event_type == "chroma_save":
+        tool = event.get("tool", "?")
+        chunk_count = event.get("chunk_count", "?")
+        content_chars = event.get("content_chars", "?")
+        print(f" 💾 {tool} | {chunk_count} chunks ({content_chars} chars)")
+
+    elif event_type == "chroma_query":
+        query = event.get("query", "?")
+        tool = event.get("tool", "")
+        results = event.get("results_count", "?")
+        tool_str = f" [{tool}]" if tool else ""
+        print(f" 🔍 Chroma{tool_str}: '{query}' → {results} results")
+
+    elif event_type == "weak_search_query":
+        tool = event.get("tool", "?")
+        query = event.get("query", "?")
+        results = event.get("results_count", "?")
+        print(f" ⚠️  Weak query: {tool} | '{query}' ({results} results)")
+
+    elif event_type == "reanalyze_urls":
+        reason = event.get("reason", "?")
+        urls_count = event.get("urls_count", "?")
+        elapsed = event.get("elapsed_seconds", None)
+        elapsed_str = f" ({elapsed:.1f}s)" if elapsed else ""
+        print(f" 🔄 Reanalyze: {reason} | {urls_count} URLs{elapsed_str}")
+
+    elif event_type == "enrichment_via_chroma":
+        tool = event.get("tool", "?")
+        enrichment_type = event.get("enrichment_type", "?")
+        sources = event.get("sources_count", "?")
+        elapsed = event.get("elapsed_seconds", None)
+        elapsed_str = f" ({elapsed:.1f}s)" if elapsed else ""
+        print(f" ⚡ Enrich {enrichment_type}: {tool} | {sources} sources{elapsed_str}")
+
+    elif event_type == "scraped_content_preview":
+        tool = event.get("tool", "?")
+        url = event.get("url", "?")
+        preview = event.get("preview", "")
+        total_chars = event.get("total_chars", 0)
+        # Show first 100 chars of preview
+        preview_short = preview[:100].replace("\n", " ").strip()
+        print(f" 📄 [{tool}] {url}")
+        print(f"    → '{preview_short}...' ({total_chars} chars)")
+
+    elif event_type == "content_extracted":
+        url = event.get("url", "?")
+        status = event.get("status", "?")
+        preview = event.get("preview", "[vazio]")
+        chars = event.get("chars", 0)
+        icon = "✓" if status == "ok" and chars > 0 else "⚠"
+        print(f" {icon} Extracted: {url[:50]}")
+        print(f"    → {preview} ({chars} chars)")
+
+    elif event_type == "content_extraction_failed":
+        url = event.get("url", "?")
+        error = event.get("error", "unknown")
+        elapsed = event.get("elapsed", "?")
+        print(f" ✗ FALHOU: {url}")
+        print(f"    → Erro: {error} ({elapsed}s)")
+
     else:
         details = {key: value for key, value in event.items() if key not in ["timestamp", "type"]}
         if details:
@@ -226,6 +286,23 @@ def stats_summary(events: list):
         print(f"  Min:  {min(elapsed_times):.2f}s")
         print(f"  Max:  {max(elapsed_times):.2f}s")
         print(f"  Avg:  {sum(elapsed_times) / len(elapsed_times):.2f}s")
+
+    # Chroma stats
+    chroma_saves = sum(1 for e in events if e.get("type") == "chroma_save")
+    chroma_queries = sum(1 for e in events if e.get("type") == "chroma_query")
+    weak_queries = sum(1 for e in events if e.get("type") == "weak_search_query")
+    enrichments = sum(1 for e in events if e.get("type") in ["enrichment_via_chroma", "reanalyze_urls"])
+
+    if chroma_saves or chroma_queries or weak_queries or enrichments:
+        print(f"\n🗄️  Chroma Vector Database:")
+        if chroma_saves:
+            print(f"  💾 Saves: {chroma_saves}")
+        if chroma_queries:
+            print(f"  🔍 Queries: {chroma_queries}")
+        if weak_queries:
+            print(f"  ⚠️  Weak searches: {weak_queries}")
+        if enrichments:
+            print(f"  ⚡ Smart enrichments: {enrichments}")
 
     if events:
         first_time = datetime.fromisoformat(events[0].get("timestamp", ""))

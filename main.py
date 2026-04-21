@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
@@ -90,6 +91,101 @@ def coletar_validacoes() -> list[str]:
     return criterios
 
 
+def perguntar_pesquisa_existente(pipeline) -> str | None:
+    """Ask if user wants to reuse an existing research file.
+
+    Returns:
+        research_content if chosen, None if should run new research
+    """
+    console.print("\n[dim]Pesquisas históricas:[/dim]")
+
+    # List existing research files
+    research_files = pipeline.list_research_files()
+
+    if research_files:
+        console.print("[dim]Arquivos de pesquisa disponíveis:[/dim]")
+        console.print("  [cyan]0.[/cyan] Executar nova pesquisa (padrão)")
+        for menu_index, (filename, tool, size) in enumerate(research_files, MENU_INDEX_START):
+            size_kb = size / 1024
+            console.print(f"  [cyan]{menu_index}.[/cyan] {filename} ({tool}, {size_kb:.1f}KB)")
+
+        escolha = Prompt.ask(
+            "\n[bold]Usar pesquisa existente?[/bold] [dim](número, ou enter para nova)[/dim]",
+            default="0",
+        )
+
+        if escolha.strip() == "0" or not escolha.strip():
+            return None  # Run new research
+
+        try:
+            file_index = int(escolha.strip())
+            if 1 <= file_index <= len(research_files):
+                _, tool, _ = research_files[file_index - MENU_INDEX_START]
+                research_content = pipeline.load_research_history(tool)
+                if research_content:
+                    console.print(f"\n[green]✓[/green] Pesquisa de {tool} carregada ({len(research_content)} chars)")
+                    return research_content
+        except (ValueError, IndexError):
+            pass  # Fall through to run new research
+
+    return None  # Default: run new research
+
+
+def perguntar_urls() -> tuple[list[str] | None, bool]:
+    """Ask if user wants to reuse existing URLs or search new ones.
+
+    Supports multiple file selection (comma-separated indices).
+
+    Returns:
+        (urls, skip_search) where:
+        - urls: List of URLs if chosen, None if should search
+        - skip_search: True if should skip web search
+    """
+    console.print("\n[dim]URLs para scraping:[/dim]")
+
+    # Find existing URL files
+    output_dir = Path("output")
+    url_files = sorted(output_dir.glob("urls_*.txt"))
+
+    if url_files:
+        console.print("[dim]Arquivos de URLs disponíveis:[/dim]")
+        console.print("  [cyan]0.[/cyan] Buscar novos URLs (padrão)")
+        for menu_index, url_file in enumerate(url_files, MENU_INDEX_START):
+            file_size = url_file.stat().st_size
+            num_urls = len(url_file.read_text().strip().split('\n'))
+            console.print(f"  [cyan]{menu_index}.[/cyan] {url_file.name} ({num_urls} URLs, {file_size} bytes)")
+
+        escolha = Prompt.ask(
+            "\n[bold]Usar URLs existentes?[/bold] [dim](números separados por vírgula, ou enter para buscar novos)[/dim]",
+            default="0",
+        )
+
+        if escolha.strip() == "0" or not escolha.strip():
+            return None, False  # Search new URLs
+
+        # Parse multiple file indices (comma-separated)
+        all_urls = []
+        selected_files = []
+
+        try:
+            indices = [int(idx.strip()) for idx in escolha.split(",")]
+            for file_index in indices:
+                if 1 <= file_index <= len(url_files):
+                    selected_file = url_files[file_index - MENU_INDEX_START]
+                    file_urls = [url.strip() for url in selected_file.read_text().strip().split('\n') if url.strip()]
+                    all_urls.extend(file_urls)
+                    selected_files.append(selected_file.name)
+
+            if all_urls:
+                files_str = ", ".join(selected_files)
+                console.print(f"\n[green]✓[/green] Carregados {len(all_urls)} URLs de {files_str}")
+                return all_urls, True  # Skip search
+        except (ValueError, IndexError):
+            pass  # Fall through to search new URLs
+
+    return None, False  # Default: search new URLs
+
+
 def exibir_resumo(ferramentas, contexto, foco, questoes, validacoes):
     resumo_table = Table(show_header=False, box=None, padding=(0, 2))
     resumo_table.add_column(style="dim", width=16)
@@ -153,6 +249,7 @@ def main():
         foco        = perguntar_foco()
         questoes    = perguntar_questoes()
         validacoes  = coletar_validacoes()
+        urls, skip_search = perguntar_urls()
     except KeyboardInterrupt:
         console.print("\n[dim]Cancelado.[/dim]")
         sys.exit(0)
@@ -167,6 +264,15 @@ def main():
         console.print("[yellow]Modo refresh-search ativo: ignorando cache de busca nesta execução.[/yellow]")
 
     pipeline    = SDDPipeline(verbosity="minimal")
+
+    # Ask if user wants to reuse existing research
+    existing_research = None
+    try:
+        existing_research = perguntar_pesquisa_existente(pipeline)
+    except KeyboardInterrupt:
+        console.print("\n[dim]Cancelado.[/dim]")
+        sys.exit(0)
+
     try:
         output_path = pipeline.run(
             ferramentas=ferramentas,
@@ -174,6 +280,9 @@ def main():
             foco=foco,
             questoes=questoes,
             refresh_search=cli_flags["refresh_search"],
+            urls=urls,
+            skip_search=skip_search,
+            existing_research=existing_research,
         )
     except Exception as error:
         console.print()

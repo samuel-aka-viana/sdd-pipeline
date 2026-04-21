@@ -1,5 +1,6 @@
 import logging
 import time
+import asyncio
 import trafilatura
 from trafilatura import extract
 from trafilatura.settings import use_config
@@ -14,7 +15,7 @@ except ImportError:
     HAS_CFFI = False
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.async_api import async_playwright
     HAS_PLAYWRIGHT = True
 except ImportError:
     HAS_PLAYWRIGHT = False
@@ -43,9 +44,6 @@ class ScraperTool:
         self.config = use_config()
         self.config.set("DEFAULT", "DOWNLOAD_TIMEOUT", str(timeout))
         self.config.set("DEFAULT", "MIN_OUTPUT_SIZE", "200")
-        self.playwright_runtime = None
-        self.playwright_browser = None
-        self.playwright_context_by_domain = {}
 
     def extract_text(self, url: str) -> dict:
         if HAS_CFFI:
@@ -113,8 +111,9 @@ class ScraperTool:
                     "truncated": len(text) > self.max_chars,
                 }
             except Exception as error:
-                last_status = f"cffi_error: {error}"
-                log.debug("cffi failed: %s — %s", url, error)
+                error_type = type(error).__name__
+                last_status = "cffi_error"
+                log.debug(f"cffi [{error_type}] attempt {attempt_number + 1}: {url[:60]}")
                 if attempt_number < self.max_retries:
                     time.sleep(0.4 * (attempt_number + 1))
                     continue
@@ -126,7 +125,7 @@ class ScraperTool:
         try:
             downloaded = trafilatura.fetch_url(url, config=self.config)
             if not downloaded:
-                return {"url": url, "text": "", "status": "fetch_failed"}
+                return {"url": url, "text": "", "status": "trafilatura_fetch_failed"}
 
             text = extract(
                 downloaded,
@@ -137,7 +136,7 @@ class ScraperTool:
             )
 
             if not text or len(text) < 100:
-                return {"url": url, "text": "", "status": "empty_extract"}
+                return {"url": url, "text": "", "status": "trafilatura_empty"}
 
             return {
                 "url": url,
@@ -147,41 +146,111 @@ class ScraperTool:
                 "truncated": len(text) > self.max_chars,
             }
         except Exception as e:
-            return {"url": url, "text": "", "status": f"trafilatura_error: {e}"}
+            error_type = type(e).__name__
+            # Minimal logging for trafilatura errors
+            log.debug(f"trafilatura [{error_type}]: {url[:60]}")
+            return {"url": url, "text": "", "status": "trafilatura_error"}
 
     def playwright_extract(self, url: str) -> dict:
+        """Sync wrapper around async playwright extraction. Creates own event loop per call."""
         try:
-            browser_context = self.get_or_create_playwright_context(url)
-            page = browser_context.new_page()
-            response = page.goto(url, timeout=self.timeout * 1000, wait_until="domcontentloaded")
-            page.wait_for_load_state("networkidle", timeout=self.timeout * 1000)
-            page_html = page.content()
-            page_title = (page.title() or "").strip()
-            status_code = response.status if response else 0
-
-            if self.is_cloudflare_challenge(
-                body_text=f"{page_title}\n{page_html}",
-                status_code=status_code,
-            ):
-                page.close()
-                return {"url": url, "text": "", "status": "cloudflare_challenge"}
-
-            text = page.inner_text("body")
-            page.close()
-
-            if not text or len(text) < 100:
-                return {"url": url, "text": "", "status": "playwright_empty"}
-
-            return {
-                "url": url,
-                "text": text[: self.max_chars],
-                "status": "ok",
-                "source": "playwright",
-                "truncated": len(text) > self.max_chars,
-            }
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self._playwright_extract_async(url))
+            return result
         except Exception as error:
-            log.warning("playwright fallback failed: %s — %s", url, error)
-            return {"url": url, "text": "", "status": f"playwright_error: {error}"}
+            error_type = type(error).__name__
+            log.debug(f"playwright async init failed [{error_type}]: {url[:60]}")
+            return {"url": url, "text": "", "status": "playwright_error"}
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+
+    async def _playwright_extract_async(self, url: str) -> dict:
+        """Async playwright extraction using proper async context."""
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+
+                context_opts = {
+                    "user_agent": self.browser_user_agent,
+                } if self.compliant_mode else {}
+
+                if self.compliant_mode:
+                    context_opts.update({
+                        "locale": "en-US",
+                        "timezone_id": "America/New_York",
+                        "viewport": {"width": 1366, "height": 768},
+                        "java_script_enabled": True,
+                        "extra_http_headers": {
+                            "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.7",
+                            "DNT": "1",
+                        },
+                    })
+
+                context = await browser.new_context(**context_opts)
+                page = await context.new_page()
+
+                try:
+                    response = await page.goto(url, timeout=self.timeout * 1000, wait_until="domcontentloaded")
+                    await page.wait_for_load_state("networkidle", timeout=self.timeout * 1000)
+                    page_html = await page.content()
+                    page_title = (await page.title() or "").strip()
+                    status_code = response.status if response else 0
+
+                    if self.is_cloudflare_challenge(
+                        body_text=f"{page_title}\n{page_html}",
+                        status_code=status_code,
+                    ):
+                        await page.close()
+                        await context.close()
+                        await browser.close()
+                        return {"url": url, "text": "", "status": "cloudflare_challenge"}
+
+                    text = await page.inner_text("body")
+
+                    if not text or len(text) < 100:
+                        await page.close()
+                        await context.close()
+                        await browser.close()
+                        return {"url": url, "text": "", "status": "playwright_empty"}
+
+                    result = {
+                        "url": url,
+                        "text": text[: self.max_chars],
+                        "status": "ok",
+                        "source": "playwright",
+                        "truncated": len(text) > self.max_chars,
+                    }
+
+                    await page.close()
+                    await context.close()
+                    await browser.close()
+                    return result
+
+                except asyncio.TimeoutError:
+                    await page.close()
+                    await context.close()
+                    await browser.close()
+                    log.debug(f"playwright timeout: {url[:60]} ({self.timeout}s)")
+                    return {"url": url, "text": "", "status": "playwright_timeout"}
+                except Exception as e:
+                    await page.close()
+                    await context.close()
+                    await browser.close()
+                    error_type = type(e).__name__
+                    log.debug(f"playwright page error [{error_type}]: {url[:60]}")
+                    return {"url": url, "text": "", "status": "playwright_error"}
+
+        except asyncio.TimeoutError:
+            log.debug(f"playwright timeout: {url[:60]} ({self.timeout}s)")
+            return {"url": url, "text": "", "status": "playwright_timeout"}
+        except Exception as error:
+            error_type = type(error).__name__
+            log.debug(f"playwright failed [{error_type}]: {url[:60]}")
+            return {"url": url, "text": "", "status": "playwright_error"}
 
     def build_browser_headers(self, url: str) -> dict:
         if not self.compliant_mode:
@@ -218,58 +287,3 @@ class ScraperTool:
         has_marker = any(challenge_marker in normalized_body for challenge_marker in challenge_markers)
         return has_marker and status_code in {0, 403, 429, 503, 200}
 
-    def get_or_create_playwright_context(self, url: str):
-        if not HAS_PLAYWRIGHT:
-            raise RuntimeError("Playwright não está instalado")
-
-        if self.playwright_runtime is None:
-            self.playwright_runtime = sync_playwright().start()
-
-        if self.playwright_browser is None:
-            self.playwright_browser = self.playwright_runtime.chromium.launch(headless=True)
-
-        domain = self.extract_host(url).lower()
-        if domain in self.playwright_context_by_domain:
-            return self.playwright_context_by_domain[domain]
-
-        if self.compliant_mode:
-            browser_context = self.playwright_browser.new_context(
-                user_agent=self.browser_user_agent,
-                locale="en-US",
-                timezone_id="America/New_York",
-                viewport={"width": 1366, "height": 768},
-                java_script_enabled=True,
-                extra_http_headers={
-                    "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.7",
-                    "DNT": "1",
-                },
-            )
-        else:
-            browser_context = self.playwright_browser.new_context()
-        self.playwright_context_by_domain[domain] = browser_context
-        return browser_context
-
-    def shutdown(self):
-        for browser_context in self.playwright_context_by_domain.values():
-            try:
-                browser_context.close()
-            except Exception:
-                pass
-        self.playwright_context_by_domain = {}
-
-        if self.playwright_browser:
-            try:
-                self.playwright_browser.close()
-            except Exception:
-                pass
-            self.playwright_browser = None
-
-        if self.playwright_runtime:
-            try:
-                self.playwright_runtime.stop()
-            except Exception:
-                pass
-            self.playwright_runtime = None
-
-    def __del__(self):
-        self.shutdown()

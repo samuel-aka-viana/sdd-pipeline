@@ -27,23 +27,23 @@ class TestResearcherSkillMocked:
             response="## URLS CONSULTADAS\n- https://docker.com\n\n## REQUISITOS\n4GB RAM"
         )
         mock_llm_class.return_value = mock_instance
-        
+
         mock_search = MagicMock()
         mock_search.search_multi.return_value = {
             "query1": [{"url": "https://docker.com", "snippet": "Docker info"}]
         }
         mock_search.save_urls = MagicMock()
-        
+
         mock_scraper = MagicMock()
         mock_scraper.extract_text.return_value = {
             "status": "ok",
             "text": "Docker documentation content here",
             "truncated": False
         }
-        
+
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
-        
+
         researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory)
         
         # Act
@@ -63,15 +63,15 @@ class TestResearcherSkillMocked:
         mock_instance.model_for_role.return_value = "test-model"
         mock_instance.generate.return_value = Mock(response="Test response")
         mock_llm_class.return_value = mock_instance
-        
+
         mock_search = MagicMock()
         mock_search.search_multi.return_value = {}
         mock_search.save_urls = MagicMock()
-        
+
         mock_scraper = MagicMock()
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
-        
+
         researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory)
         
         # Act
@@ -93,15 +93,15 @@ class TestResearcherSkillMocked:
         mock_instance.model_for_role.return_value = "test-model"
         mock_instance.generate.return_value = Mock(response="No data found")
         mock_llm_class.return_value = mock_instance
-        
+
         mock_search = MagicMock()
         mock_search.search_multi.return_value = {}
         mock_search.save_urls = MagicMock()
-        
+
         mock_scraper = MagicMock()
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
-        
+
         researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory)
         
         # Act
@@ -320,9 +320,9 @@ class TestCriticSkillMocked:
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
         mock_llm_class.return_value = mock_instance
-        
+
         mock_memory = MagicMock()
-        
+
         critic = CriticSkill(mock_memory)
         valid_article = """# TLDR
 Summary.
@@ -345,8 +345,10 @@ Example.
 # Armadilhas
 Error 1. Error 2.
 
-# Otimizações
-Tip 1. Tip 2. Tip 3.
+# Dicas de Otimização
+- Tip 1 detailed
+- Tip 2 detailed
+- Tip 3 detailed
 
 # Conclusão
 Conclusion.
@@ -355,10 +357,10 @@ Conclusion.
 - https://docker.com
 - https://github.com/docker
 - https://docs.docker.com"""
-        
+
         # Act
         result = critic.evaluate(valid_article, "docker")
-        
+
         # Assert
         assert result["approved"] == True
         assert result["layer"] == "semantic"
@@ -393,9 +395,9 @@ Conclusion.
             response="This command doesn't actually exist in Docker"
         )
         mock_llm_class.return_value = mock_instance
-        
+
         mock_memory = MagicMock()
-        
+
         critic = CriticSkill(mock_memory)
         valid_structure_article = """# TLDR
 Summary.
@@ -418,8 +420,10 @@ docker fake-command.
 # Armadilhas
 Error 1. Error 2.
 
-# Otimizações
-Tip 1. Tip 2. Tip 3.
+# Dicas de Otimização
+- Tip 1 detailed
+- Tip 2 detailed
+- Tip 3 detailed
 
 # Conclusão
 Conclusion.
@@ -428,10 +432,10 @@ Conclusion.
 - https://docker.com
 - https://github.com/docker
 - https://docs.docker.com"""
-        
+
         # Act
         result = critic.evaluate(valid_structure_article, "docker")
-        
+
         # Assert
         # Should be approved or failed by semantic check (depends on LLM output)
         assert "layer" in result

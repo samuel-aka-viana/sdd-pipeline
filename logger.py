@@ -26,12 +26,12 @@ class EventLog:
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
     
     def log_event(self, event_type: str, data: dict):
-        """Append event to JSONL file with ISO timestamp.
-        
+        """Append event to JSONL file with ISO timestamp (unbuffered).
+
         Args:
             event_type: Type of event (e.g., "url_found", "task_completed")
             data: Event-specific data dict
-            
+
         Example:
             event_log.log_event("url_found", {
                 "url": "https://example.com",
@@ -45,8 +45,9 @@ class EventLog:
             "type": event_type,
             **data
         }
-        with open(self.log_file, 'a') as f:
+        with open(self.log_file, 'a', buffering=1) as f:
             f.write(json.dumps(event) + '\n')
+            f.flush()
 
     def reset(self):
         """Clear current event log file so a new run starts with a fresh stream."""

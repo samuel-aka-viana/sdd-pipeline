@@ -100,6 +100,7 @@ class SpecValidator:
             self.validate_code_blocks,
             self.validate_table_cells,
             self.validate_command_integrity,
+            self.validate_min_tips,
         ]
         list(map(lambda validation_function: validation_function(validation_context), validations))
 
@@ -271,6 +272,35 @@ class SpecValidator:
                     "Substitua por retorno textual sem placeholder "
                     "(ex: 'campo QueueUrl retornado com sucesso')."
                 ),
+            )
+
+    def validate_min_tips(self, context: dict):
+        min_tips = self.rules.get("min_tips", 3)
+        optimization_section = re.search(
+            r'#\s*(?:otimiza|dica|performance)[^\n]*\n(.*?)(?=#\s|\Z)',
+            context["artigo"],
+            re.IGNORECASE | re.DOTALL
+        )
+        if not optimization_section:
+            self.add_problem(
+                context=context,
+                problem=f"Seção de otimizações/dicas não encontrada ou vazia",
+                spec_reference="article.quality_rules.min_tips",
+                correction=f"Adicione seção '## Dicas de Otimização' com mínimo {min_tips} dicas listadas",
+            )
+            return
+
+        tips_text = optimization_section.group(1)
+        # Match both bullet points (- *) and numbered lists (1. 2. etc)
+        tip_items = re.findall(r'(?:^|\n)\s*(?:[-*]|\d+\.)\s+\w', tips_text, re.MULTILINE)
+        tip_count = len(tip_items)
+
+        if tip_count < min_tips:
+            self.add_problem(
+                context=context,
+                problem=f"Dicas insuficientes: {tip_count} dicas encontradas, mínimo {min_tips}",
+                spec_reference="article.quality_rules.min_tips",
+                correction=f"Adicione mais {min_tips - tip_count} dica(s) na seção de otimizações",
             )
 
     def problems_as_prompt(self, result):

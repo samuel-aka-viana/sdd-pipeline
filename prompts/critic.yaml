@@ -1,0 +1,24 @@
+version: "1.0"
+
+semantic_check: |
+  Revise este artigo sobre {ferramentas}.
+  Liste APENAS problemas factuais óbvios:
+  - Comando que claramente não existe nessa ferramenta
+  - Número claramente impossível (ex: "consome 3MB de RAM" para banco de dados)
+  - Contradição interna entre seções
+  - Import ou path de código que não existe
+
+  Formato obrigatório de resposta:
+  1. TRECHO: "<citação literal exata do artigo>" | PROBLEMA: <explicação objetiva>
+  2. TRECHO: "<citação literal exata do artigo>" | PROBLEMA: <explicação objetiva>
+
+  Regras:
+  - Só reporte se houver TRECHO literal presente no ARTIGO.
+  - Se não houver evidência textual, NÃO reporte.
+  - NÃO use suposição de "ano atual" para invalidar links/datas.
+  - NÃO critique datas futuras ou anos como 2026/2027 por si só.
+  - Ignore qualquer limitação de conhecimento temporal do modelo.
+  Se não encontrar problemas, responda exatamente: SEM PROBLEMAS
+
+  ARTIGO:
+  {artigo}

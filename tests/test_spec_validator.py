@@ -292,7 +292,7 @@ Summary
         assert len(error_warnings) > 0, "Should warn about insufficient errors"
 
     def test_minimum_tips_in_otimizacoes_section(self, validator):
-        """Otimizações section should warn if fewer than 3 tips documented"""
+        """Otimizações section should fail if fewer than 3 tips documented"""
         article = """
 # TLDR
 Summary
@@ -318,7 +318,8 @@ Summary
 - https://tutorial.com
 """
         result = validator.validate(article)
-        assert result.passed or len(result.problems) == 0
+        assert not result.passed, "Article with insufficient tips should fail"
+        assert any("dica" in p.lower() for p in result.problems), "Should have tip-related problem"
 
 
 class TestSpecValidatorHardware:

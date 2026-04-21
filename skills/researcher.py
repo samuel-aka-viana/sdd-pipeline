@@ -1,11 +1,21 @@
+import asyncio
+
 import yaml
 import logging
 import re
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from llm import LLMClient
 from logger import EventLog
+
+try:
+    from memory.research_chroma import ResearchChroma
+    HAS_CHROMA = True
+except ImportError:
+    HAS_CHROMA = False
 
 logger = logging.getLogger(__name__)
 
@@ -369,6 +379,7 @@ class ResearcherSkill:
         self.search = search_tool
         self.scraper = scraper_tool
         self.memory = memory
+        self.chroma = ResearchChroma() if HAS_CHROMA else None
         self.spec = yaml.safe_load(Path(spec_path).read_text())
         self.llm = LLMClient(spec_path)
         self.model = self.llm.model_for_role("researcher")
@@ -393,6 +404,68 @@ class ResearcherSkill:
         timeouts = llm_conf.get("timeout", self.spec.get("ollama", {}).get("timeout", {}))
         self.temp = temperatures["researcher"]
         self.timeout = timeouts.get("researcher", timeouts.get("default", 300))
+        # Store scraped URLs for re-analysis (e.g., when looking for tips/errors)
+        self._scraped_urls = {}
+        # Track URL richness (has tips, errors, commands, etc.)
+        self._url_richness = {}
+
+    def _infer_source_quality(self, url: str) -> str:
+        """Infer source quality level for FTS metadata."""
+        domain = urlparse(url).netloc.lower()
+
+        if any(domain.endswith(trusted) for trusted in TRUSTED_TECH_DOMAINS):
+            return "official"
+
+        if any(hint in domain for hint in HIGH_TRUST_DOMAIN_HINTS):
+            return "trusted"
+
+        if domain in MEDIUM_TRUST_DOMAINS:
+            return "medium"
+
+        if domain in QNA_DOMAINS:
+            return "medium"
+
+        return "unknown"
+
+    def extract_section_structure(self, url: str, markdown_content: str) -> dict:
+        """Analyze markdown structure to detect rich content (tips, errors, commands, benchmarks).
+
+        Uses header hierarchy from Crawl4AI's structured markdown to classify content.
+        Enables smart prioritization: URLs with many tips get analyzed first when
+        critic says "Dicas insuficientes".
+        """
+        sections = {
+            "tips": [],
+            "errors": [],
+            "commands": [],
+            "benchmarks": [],
+            "warnings": [],
+            "has_table": False,
+        }
+
+        if not markdown_content:
+            return sections
+
+        # Find all headers (preserves Crawl4AI structure)
+        headers = re.findall(r'^#+\s+(.+)$', markdown_content, re.MULTILINE)
+
+        for header in headers:
+            header_lower = header.lower()
+            if any(word in header_lower for word in ["dica", "tip", "otimiza", "optimization"]):
+                sections["tips"].append(header)
+            elif any(word in header_lower for word in ["erro", "error", "problema", "pitfall"]):
+                sections["errors"].append(header)
+            elif any(word in header_lower for word in ["command", "instala", "install", "bash"]):
+                sections["commands"].append(header)
+            elif any(word in header_lower for word in ["benchmark", "performance", "throughput", "latency"]):
+                sections["benchmarks"].append(header)
+            elif any(word in header_lower for word in ["warning", "⚠", "cuidado", "aviso"]):
+                sections["warnings"].append(header)
+
+        # Check for tables (another indicator of structured content)
+        sections["has_table"] = bool(re.search(r'\|.*\|', markdown_content))
+
+        return sections
 
     def log_url_found(
         self,
@@ -430,6 +503,8 @@ class ResearcherSkill:
         questoes=None,
         refresh_search: bool = False,
         targeted_questions_only: bool = False,
+        urls: list[str] | None = None,
+        skip_search: bool = False,
     ):
         """Execute research pipeline for a tool.
         
@@ -466,8 +541,34 @@ class ResearcherSkill:
         )
         logger.debug(f"Built {len(queries)} search queries")
 
-        results_by_query = self.search.search_multi(queries, force_refresh=refresh_search)
-        logger.debug(f"Got search results for {len(results_by_query)} queries")
+        # NEW: Skip web search if URLs provided
+        if skip_search and urls:
+            logger.info(f"⏭️  Skipping web search - using {len(urls)} provided URLs")
+            # Convert bare URLs to result dicts with {url, title, snippet}
+            url_results = [
+                {"url": url.strip(), "title": url.strip()[:50], "snippet": ""}
+                for url in urls
+                if url.strip()
+            ]
+            results_by_query = {"provided_urls": url_results}
+            self.memory.log_event("search_skipped", {
+                "tool": tool,
+                "urls_provided": len(url_results),
+            })
+        else:
+            results_by_query = self.search.search_multi(queries, force_refresh=refresh_search)
+            logger.debug(f"Got search results for {len(results_by_query)} queries")
+
+        # LOG WEAK QUERIES: Log to Chroma event tracking
+        for query, results in results_by_query.items():
+            results_count = len(results) if results else 0
+            if results_count < 3:
+                logger.info(f"⚠️  Weak query results ({results_count}): {query}")
+                self.memory.log_event("weak_search_query", {
+                    "tool": tool,
+                    "query": query,
+                    "results_count": results_count,
+                })
 
         filtered_results_by_query = self.filter_search_results(
             results_by_query=results_by_query,
@@ -483,7 +584,7 @@ class ResearcherSkill:
 
         self.search.save_urls(filtered_results_by_query, f"output/urls_{tool}.txt")
 
-        context = self.build_context(filtered_results_by_query)
+        context = self.build_context(filtered_results_by_query, tool=tool)
         logger.debug(f"Context built: {len(context)} chars, scrape_stats: {self.last_scrape_stats}")
         
         lessons = self.memory.get_lessons_for_prompt()
@@ -548,7 +649,7 @@ Produza o relatório:
         self.memory.log_event("research_done", {
             "tool": tool,
             "foco": foco,
-            "queries": queries,
+            "queries": len(queries),
             "scrape_stats": self.last_scrape_stats,
         })
         return resp.response
@@ -649,35 +750,28 @@ Produza o relatório:
         normalized_text = (text or "").lower()
         return any(intent_term in normalized_text for intent_term in terms)
 
-    def build_context(self, results_by_query):
+    def build_context(self, results_by_query, tool: str = "unknown"):
         """Scrape URLs and build context string for LLM analysis.
-        
-        Extracts text from URLs, skips non-useful domains, tracks scraping stats,
-        and logs events to PipelineLogger for real-time monitoring.
-        
+
+        Uses parallel scraping (3 workers) instead of serial.
+        Extracts text from URLs, skips non-useful domains, tracks scraping stats.
+
         Max 10 URLs scraped per tool; uses search snippets as fallback if scrape fails.
         Each URL limited to 4000 chars.
-        
+
         Args:
-            results_by_query: Dict from search_tool.search_multi() with format:
-                {query: [{"url": "...", "snippet": "...", ...}, ...]}
-                
+            results_by_query: Dict from search_tool.search_multi()
+
         Returns:
             Multi-line context string with scraped content, ready for LLM prompt
-            
-        Sets self.last_scrape_stats dict with {ok, fail, skipped} counts
-            
-        Example:
-            context = researcher.build_context(search_results)
-            # Returns formatted context with real-time event logging
         """
         import time as time_module
-        
+
         lines = []
         seen_urls: set[str] = set()
-        scrape_ok = 0
-        scrape_fail = 0
-        total_scrapes = 0
+        urls_to_scrape = []
+
+        # PHASE 1: Collect URLs to scrape (filter + deduplicate)
         for query, results in results_by_query.items():
             lines.append(f"\n### Busca: {query}")
 
@@ -690,62 +784,476 @@ Produza o relatório:
                     continue
                 seen_urls.add(url)
 
-                if total_scrapes >= MAX_SCRAPES_PER_TOOL:
+                if len(urls_to_scrape) < MAX_SCRAPES_PER_TOOL:
+                    urls_to_scrape.append((url, result_item))
+                else:
+                    # Limit reached: use snippet as fallback
                     lines.append(f"URL: {url}")
                     lines.append(f"Resumo: {result_item.get('snippet', '')}")
                     lines.append("---")
                     title = result_item.get('snippet', '')[:40]
                     self.log_url_found(url, title=title, status="ok")
-                    continue
 
-                total_scrapes += 1
-                
-                scrape_start = time_module.time()
-                result = self.scraper.extract_text(url)
-                scrape_elapsed = time_module.time() - scrape_start
+        # PHASE 2: Parallel scraping (3 workers)
+        scraped_results = self._scrape_urls_parallel(urls_to_scrape, tool)
 
-                if result["status"] == "ok":
-                    scrape_ok += 1
-                    text = result["text"][:MAX_CHARS_PER_SCRAPE]
-                    tag = " [TRUNCADO]" if result.get("truncated") else ""
-                    lines.append(f"URL: {url}{tag}")
-                    lines.append(f"Conteúdo Extraído:\n{text}")
+        # PHASE 3: Build context from scraped results
+        for url, result, result_item in scraped_results:
+            if result["status"] == "ok":
+                text = result["text"][:MAX_CHARS_PER_SCRAPE]
+                tag = " [TRUNCADO]" if result.get("truncated") else ""
+                lines.append(f"URL: {url}{tag}")
+                lines.append(f"Conteúdo Extraído:\n{text}")
+                lines.append("---")
+                title = text.split('\n')[0][:40] if text else ""
+
+                # Store for re-analysis
+                self._scraped_urls[url] = result["text"]
+
+                # Extract markdown structure from Crawl4AI result
+                markdown_raw = result.get("markdown", "")
+                if not markdown_raw and result.get("source") == "crawl4ai":
+                    # Fallback: use text as markdown if not explicitly provided
+                    markdown_raw = result["text"]
+
+                # Analyze markdown structure to detect rich content
+                structure = self.extract_section_structure(url, markdown_raw)
+                self._url_richness[url] = structure
+
+                # PERSIST to Chroma (primary) with intelligent chunking
+                if self.chroma:
+                    content_text = result.get("text", "")
+                    if content_text:
+                        # Log RAW CONTENT preview BEFORE saving (for debugging)
+                        content_preview = content_text[:200]
+                        self.memory.log_event("scraped_content_preview", {
+                            "tool": tool,
+                            "url": url[:60],
+                            "preview": content_preview,
+                            "total_chars": len(content_text),
+                        })
+
+                        success = self.chroma.save_scraped_content(
+                            tool=tool,
+                            url=url,
+                            title=title,
+                            content=content_text,
+                            markdown_raw=markdown_raw,
+                            source_quality=self._infer_source_quality(url),
+                            scrape_elapsed_seconds=result.get("elapsed", 0),
+                        )
+                        # Log Chroma persistence event (only if successful)
+                        if success:
+                            chunks_count = len(self.chroma.chunk_content(content_text))
+                            self.memory.log_event("chroma_save", {
+                                "tool": tool,
+                                "url": url,
+                                "content_chars": len(content_text),
+                                "chunk_count": chunks_count,
+                                "source_quality": self._infer_source_quality(url),
+                            })
+                        else:
+                            logger.warning(f"Failed to save to Chroma: {url[:60]}")
+
+                # Log content preview BEFORE anything
+                content_text = result.get("text", "")
+                preview = content_text[:100].replace("\n", " ")[:80] if content_text else "[VAZIO]"
+                self.memory.log_event("content_extracted", {
+                    "url": url[:60],
+                    "status": "ok" if content_text else "empty",
+                    "preview": preview,
+                    "chars": len(content_text),
+                })
+
+                self.log_url_found(
+                    url, title=title, status="ok",
+                    elapsed=result.get("elapsed", 0),
+                    source=result.get("source", ""),
+                )
+            else:
+                # Scrape failed: log the error clearly
+                error_msg = result.get("status", "unknown_error")
+                self.memory.log_event("content_extraction_failed", {
+                    "url": url[:60],
+                    "error": error_msg,
+                    "elapsed": result.get("elapsed", 0),
+                })
+
+                # Scrape failed: use snippet
+                snippet = result_item.get("snippet", "")
+                if snippet:
+                    lines.append(f"URL: {url} [SCRAPE_FALHOU: {result['status']}]")
+                    lines.append(f"Resumo (fallback): {snippet}")
                     lines.append("---")
-                    title = text.split('\n')[0][:40] if text else ""
-                    self.log_url_found(
-                        url,
-                        title=title,
-                        status="ok",
-                        elapsed=scrape_elapsed,
-                        source=result.get("source", ""),
-                        scrape_status=result.get("status", ""),
-                    )
-                else:
-                    scrape_fail += 1
-                    self.memory.log_event("scrape_failed", {
-                        "url": url, "status": result["status"],
-                        "elapsed_seconds": scrape_elapsed
-                    })
-                    snippet = result_item.get("snippet", "")
-                    if snippet:
-                        lines.append(f"URL: {url} [SCRAPE_FALHOU: {result['status']}]")
-                        lines.append(f"Resumo (fallback): {snippet}")
-                        lines.append("---")
-                    self.log_url_found(
-                        url,
-                        title=f"[{result['status']}]",
-                        status="scrape_failed",
-                        elapsed=scrape_elapsed,
-                        source=result.get("source", ""),
-                        scrape_status=result.get("status", ""),
-                    )
+                    self._scraped_urls[url] = snippet
+
+                self.log_url_found(
+                    url,
+                    title=f"[{result['status']}]",
+                    status="scrape_failed",
+                    elapsed=result.get("elapsed", 0),
+                )
+
+        scrape_ok = sum(1 for r in scraped_results if r[1]["status"] == "ok")
+        scrape_fail = sum(1 for r in scraped_results if r[1]["status"] != "ok")
 
         self.last_scrape_stats = {
             "ok": scrape_ok,
             "fail": scrape_fail,
-            "skipped": len(seen_urls) - total_scrapes,
+            "skipped": len(seen_urls) - len(urls_to_scrape),
         }
         return "\n".join(lines)
+
+    def _scrape_urls_parallel(self, urls_to_scrape: list[tuple], tool: str) -> list[tuple]:
+        """Scrape URLs in parallel using 3 worker threads.
+
+        Args:
+            urls_to_scrape: List of (url, result_item) tuples
+            tool: Tool name for logging
+
+        Returns:
+            List of (url, result, result_item) tuples
+        """
+        import time as time_module
+
+        def scrape_single_url(url: str, result_item: dict) -> tuple:
+            scrape_start = time_module.time()
+            result = self.scraper.extract_text(url)
+            scrape_elapsed = time_module.time() - scrape_start
+            result["elapsed"] = scrape_elapsed
+            return (url, result, result_item)
+
+        scraped_results = []
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {
+                pool.submit(scrape_single_url, url, result_item): (url, result_item)
+                for url, result_item in urls_to_scrape
+            }
+
+            for future in futures:
+                try:
+                    result_tuple = future.result()
+                    scraped_results.append(result_tuple)
+                except Exception as e:
+                    url, result_item = futures[future]
+                    logger.warning(f"Parallel scrape failed for {url}: {e}")
+                    scraped_results.append((url, {"status": "error", "elapsed": 0}, result_item))
+
+        # For large batches (10+ URLs), try async batching for speed
+        if len(urls_to_scrape) >= 10:
+            try:
+                return self._scrape_urls_batch_async(urls_to_scrape)
+            except Exception as e:
+                logger.warning(f"Async batch scraping failed, using threaded fallback: {e}")
+
+        return scraped_results
+
+    def _scrape_urls_batch_async(self, urls_to_scrape: list[tuple]) -> list[tuple]:
+        """Scrape 10+ URLs using async batching (much faster than threading).
+
+        For 30 URLs: 15s (threaded) → 5-7s (async batch).
+        Uses Crawl4AI's native async capabilities.
+        """
+        import asyncio
+        import time as time_module
+
+        async def batch_scrape():
+            from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+
+            config = CrawlerRunConfig(
+                wait_until="domcontentloaded",
+            )
+
+            scraped_results = []
+
+            async with AsyncWebCrawler(always_by_pass_cache=False) as crawler:
+                # Create tasks for all URLs in parallel
+                tasks = []
+                for url, result_item in urls_to_scrape:
+                    task = self._async_crawl_task(crawler, url, result_item, config)
+                    tasks.append(task)
+
+                # Wait for all to complete
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                for result in results:
+                    if isinstance(result, Exception):
+                        logger.debug(f"Async batch scrape error: {result}")
+                        continue
+                    scraped_results.append(result)
+
+            return scraped_results
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(batch_scrape())
+        finally:
+            loop.close()
+
+    async def _async_crawl_task(self, crawler, url: str, result_item: dict, config):
+        """Single async crawl task with timing."""
+        import time as time_module
+
+        scrape_start = time_module.time()
+        try:
+            result = await crawler.arun(url=url, config=config)
+            scrape_elapsed = time_module.time() - scrape_start
+
+            if result.status_code != 200:
+                return (
+                    url,
+                    {
+                        "status": f"http_{result.status_code}",
+                        "text": "",
+                        "truncated": False,
+                        "url": url,
+                        "source": "crawl4ai",
+                        "elapsed": scrape_elapsed,
+                    },
+                    result_item,
+                )
+
+            text = result.markdown_v2.raw_markdown if result.markdown_v2 else ""
+            markdown = text
+
+            if not text and result.html:
+                try:
+                    from trafilatura import extract as traf_extract
+                    text = traf_extract(
+                        result.html,
+                        include_links=False,
+                        include_images=False,
+                        output_format="markdown",
+                    )
+                except Exception:
+                    text = result.html[:1000]
+
+            if not text:
+                return (
+                    url,
+                    {
+                        "status": "parse_error",
+                        "text": "",
+                        "truncated": False,
+                        "url": url,
+                        "source": "crawl4ai",
+                        "elapsed": scrape_elapsed,
+                    },
+                    result_item,
+                )
+
+            truncated = len(text) > MAX_CHARS_PER_SCRAPE
+            text = text[:MAX_CHARS_PER_SCRAPE]
+
+            return (
+                url,
+                {
+                    "status": "ok",
+                    "text": text,
+                    "markdown": markdown,
+                    "truncated": truncated,
+                    "url": url,
+                    "source": "crawl4ai",
+                    "elapsed": scrape_elapsed,
+                },
+                result_item,
+            )
+
+        except asyncio.TimeoutError:
+            return (
+                url,
+                {
+                    "status": "timeout",
+                    "text": "",
+                    "truncated": False,
+                    "url": url,
+                    "source": "crawl4ai",
+                    "elapsed": time_module.time() - scrape_start,
+                },
+                result_item,
+            )
+        except Exception as e:
+            logger.debug(f"Async crawl failed for {url}: {e}")
+            return (
+                url,
+                {
+                    "status": "crawl4ai_error",
+                    "text": "",
+                    "truncated": False,
+                    "url": url,
+                    "source": "crawl4ai",
+                    "elapsed": time_module.time() - scrape_start,
+                },
+                result_item,
+            )
+
+    def reanalyze_urls_for_tips_and_errors(self, tool: str, focus_on: str = "tips_and_errors") -> str:
+        """Re-analyze already-scraped content to extract tips and errors.
+
+        When critic finds "Dicas insuficientes" or "Poucos erros documentados",
+        instead of re-searching, use Chroma to find relevant chunks semantically.
+
+        Args:
+            tool: Tool name
+            focus_on: "tips_and_errors" (default), "tips_only", or "errors_only"
+
+        Returns:
+            Structured text with tips and errors found
+        """
+        if not self.chroma and not self._scraped_urls:
+            return "Nenhuma URL foi scrapada para re-análise."
+
+        # Priority 1: Semantic search in Chroma for tips/errors
+        context_lines = []
+
+        if self.chroma:
+            # Search semantically for tips and errors
+            if focus_on != "errors_only":
+                tips_query = f"{tool} dicas otimização tips best practices"
+                tips_results = self.chroma.query_similar(
+                    tips_query,
+                    tool=tool,
+                    k=5,
+                    distance_threshold=0.25,
+                )
+                self.memory.log_event("chroma_query", {
+                    "tool": tool,
+                    "query": tips_query,
+                    "results_count": len(tips_results),
+                    "query_type": "tips",
+                })
+                for result in tips_results:
+                    context_lines.append(f"URL: {result['url']}")
+                    context_lines.append(result["text"][:1000])
+                    context_lines.append(f"(Similaridade: {result['similarity']:.2f})")
+                    context_lines.append("---")
+
+            if focus_on != "tips_only":
+                error_query = f"{tool} erros problemas errors troubleshooting solução"
+                error_results = self.chroma.query_similar(
+                    error_query,
+                    tool=tool,
+                    k=5,
+                    distance_threshold=0.25,
+                )
+                self.memory.log_event("chroma_query", {
+                    "tool": tool,
+                    "query": error_query,
+                    "results_count": len(error_results),
+                    "query_type": "errors",
+                })
+                for result in error_results:
+                    context_lines.append(f"URL: {result['url']}")
+                    context_lines.append(result["text"][:1000])
+                    context_lines.append(f"(Similaridade: {result['similarity']:.2f})")
+                    context_lines.append("---")
+        else:
+            # Fallback: use local scraped URLs if Chroma not available
+            for url, content in list(self._scraped_urls.items())[:5]:
+                context_lines.append(f"URL: {url}")
+                context_lines.append(content[:1000])
+                context_lines.append("---")
+
+        context = "\n".join(context_lines)
+
+        # Tailor prompt based on focus
+        if focus_on == "tips_only":
+            task = """TAREFA:
+1. Identifique PELO MENOS 3 dicas práticas (otimizações, best practices, configurações)
+2. Use APENAS o que está escrito no conteúdo acima
+
+FORMATO:
+## Dicas Encontradas
+- [Dica 1 com comando real ou configuração]
+- [Dica 2]
+- [Dica 3]"""
+        elif focus_on == "errors_only":
+            task = """TAREFA:
+1. Identifique PELO MENOS 2 erros comuns com soluções
+2. Use APENAS o que está escrito no conteúdo acima
+
+FORMATO:
+## Erros Comuns
+- **Erro 1**: [descrição] → **Solução**: [passo]
+- **Erro 2**: [descrição] → **Solução**: [passo]"""
+        else:  # tips_and_errors
+            task = """TAREFA:
+1. Identifique PELO MENOS 3 dicas práticas (otimizações, best practices, configurações)
+2. Identifique PELO MENOS 2 erros comuns com soluções
+3. Use APENAS o que está escrito no conteúdo acima
+
+FORMATO:
+## Dicas Encontradas
+- [Dica 1 com comando real ou configuração]
+- [Dica 2]
+- [Dica 3]
+
+## Erros Comuns
+- **Erro 1**: [descrição] → **Solução**: [passo]
+- **Erro 2**: [descrição] → **Solução**: [passo]"""
+
+        prompt = f"""Você é um analista técnico especializado. Analise o conteúdo já scrapado sobre {tool}.
+
+OBJETIVO: Extrair DICAS e ERROS COMUNS do conteúdo que já temos (SEM FAZER NOVAS BUSCAS).
+
+CONTEÚDO JÁ SCRAPADO (priorizado por riqueza de estrutura):
+{context}
+
+{task}
+
+Se não conseguir identificar o mínimo esperado, escreva o que conseguiu encontrar.
+NÃO invente dados — use APENAS o que está no conteúdo acima.
+"""
+
+        resp = self.llm.generate(
+            role="researcher",
+            model=self.model,
+            prompt=prompt,
+            temperature=self.temp,
+            timeout=self.timeout,
+        )
+
+        return resp.response
+
+    def search_cached_content(self, query: str, tool: Optional[str] = None, k: int = 5) -> list[dict]:
+        """Search cached research using semantic similarity (Chroma).
+
+        Useful for:
+        - Finding "Docker tips" when writing about "Podman"
+        - Avoiding redundant searches when similar content exists
+        - Cross-tool knowledge transfer
+
+        Args:
+            query: Natural language search (e.g., "performance benchmarks")
+            tool: Filter by tool (optional)
+            k: Number of results
+
+        Returns:
+            List of {text, url, title, similarity} dicts
+        """
+        if not self.chroma:
+            logger.warning("Chroma not available for semantic search")
+            return []
+
+        if tool:
+            results = self.chroma.query_similar(query, tool=tool, k=k)
+            self.memory.log_event("chroma_query", {
+                "tool": tool,
+                "query": query,
+                "results_count": len(results),
+                "query_type": "cached_search",
+            })
+            return results
+        else:
+            results = self.chroma.cross_tool_search(query, k=k)
+            self.memory.log_event("chroma_query", {
+                "tool": "all",
+                "query": query,
+                "results_count": len(results),
+                "query_type": "cross_tool",
+            })
+            return results
 
     def filter_search_results(
         self,

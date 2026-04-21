@@ -169,7 +169,7 @@ pipeline:
 models:
   researcher: "z-ai/glm-4.5-air:free"
   analyst: "nousresearch/hermes-3-llama-3.1-405b:free"
-  writer: "z-ai/glm-4.5-air:free"
+  writer: "openai/gpt-oss-120b:free"
   critic: "nousresearch/hermes-3-llama-3.1-405b:free"
 
 # ── Opção 2: Ollama local ───────────────────────────────────────
@@ -218,7 +218,7 @@ llm:
     writer: 16384
   writer_input:
     max_research_chars: 12000
-    max_analysis_chars: 6000
+    max_analysis_chars: 12000
     max_correction_chars: 2500
   providers:
     openrouter:

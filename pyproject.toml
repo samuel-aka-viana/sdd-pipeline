@@ -3,6 +3,8 @@ name = "sdd-ollama"
 version = "0.1.0"
 requires-python = ">=3.12,<3.14"
 dependencies = [
+    "chromadb>=1.1.1",
+    "crawl4ai>=0.8.6",
     "crewai-tools>=1.14.0",
     "curl-cffi>=0.15.0",
     "ddgs>=9.13.0",

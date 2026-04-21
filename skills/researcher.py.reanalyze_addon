@@ -1,0 +1,59 @@
+    def reanalyze_urls_for_tips_and_errors(self, tool: str, max_length: int = 3000) -> str:
+        """Re-analyze already-scraped URLs to extract tips and errors.
+
+        When critic finds "Dicas insuficientes" or "Poucos erros documentados",
+        instead of re-searching, analyze URLs we already have.
+
+        Args:
+            tool: Tool name
+            max_length: Max chars to include in analysis
+
+        Returns:
+            Structured text with tips and errors found
+        """
+        if not self._scraped_urls:
+            return "Nenhuma URL foi scrapada para re-análise."
+
+        # Build context from already-scraped URLs
+        context_lines = []
+        for url, content in list(self._scraped_urls.items())[:5]:  # Top 5 URLs
+            context_lines.append(f"URL: {url}")
+            context_lines.append(content[:1000])  # Max 1000 chars per URL
+            context_lines.append("---")
+
+        context = "\n".join(context_lines)
+
+        prompt = f"""Você é um analista técnico. Analise o conteúdo já scrapado sobre {tool}.
+
+OBJETIVO: Extrair DICAS e ERROS COMUNS do conteúdo que já temos.
+
+CONTEÚDO JÁ SCRAPADO:
+{context}
+
+TAREFA:
+1. Identifique PELO MENOS 3 dicas práticas (otimizações, best practices, configurações)
+2. Identifique PELO MENOS 2 erros comuns com soluções
+3. Use APENAS o que está escrito no conteúdo acima
+
+FORMATO DE RESPOSTA:
+## Dicas Encontradas
+- [Dica 1 com comando real ou configuração]
+- [Dica 2]
+- [Dica 3]
+
+## Erros Comuns
+- **Erro 1**: [descrição] → **Solução**: [passo]
+- **Erro 2**: [descrição] → **Solução**: [passo]
+
+Se não conseguir identificar 3 dicas ou 2 erros, escreva o que conseguiu encontrar.
+"""
+
+        resp = self.llm.generate(
+            role="researcher",
+            model=self.model,
+            prompt=prompt,
+            temperature=self.temp,
+            timeout=self.timeout,
+        )
+
+        return resp.response
