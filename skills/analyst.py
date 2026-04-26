@@ -8,8 +8,20 @@ logger = logging.getLogger(__name__)
 class AnalystSkill(SkillBase):
     ROLE = "analyst"
 
-    def run(self, research, ferramentas, contexto, foco="comparação geral", questoes=None):
+    def run(self, research, ferramentas, contexto, foco="comparação geral", questoes=None, evidence_pack=None):
         questoes = questoes or []
+
+        if evidence_pack and evidence_pack.items:
+            lines = [
+                f"- [{item.source_quality}] {item.source_url}: {item.claim[:120]}"
+                for item in evidence_pack.items[:20]
+            ]
+            evidence_block = "EVIDÊNCIAS ESTRUTURADAS:\n" + "\n".join(lines)
+            if evidence_pack.gaps:
+                gap_lines = [f"- {g.topic}: {g.reason}" for g in evidence_pack.gaps]
+                evidence_block += "\n\nLACUNAS DE EVIDÊNCIA:\n" + "\n".join(gap_lines)
+        else:
+            evidence_block = ""
         logger.debug(f"Starting analysis for: {ferramentas}, foco: {foco}")
 
         if self.chroma and research and len(research.strip()) < 200:
@@ -51,6 +63,7 @@ class AnalystSkill(SkillBase):
             similar_analysis_block=similar_analysis_block,
             research=research,
             table_block=table_block,
+            evidence_block=evidence_block,
         )
         if not prompt:
             raise RuntimeError("Prompt template missing: prompts/analyst.yaml#main")

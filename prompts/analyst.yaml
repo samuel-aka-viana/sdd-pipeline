@@ -9,7 +9,9 @@ main: |
   {questoes_block}
   {similar_analysis_block}
 
-  DADOS DE PESQUISA:
+  {evidence_block}
+
+  DADOS DE PESQUISA (contexto adicional):
   {research}
 
   REGRAS CRÍTICAS:
@@ -20,6 +22,8 @@ main: |
     explicando o que se sabe
   - Células vazias são PROIBIDAS — remova a linha inteira se não tiver dado
   - NUNCA use frases genéricas como "consulte a documentação" ou "conforme necessário"
+  - Se EVIDÊNCIAS ESTRUTURADAS estiver presente, use-as como fonte primária
+  - Lacunas de evidência devem aparecer como limites da análise, não como dados inventados
 
   {table_block}
 

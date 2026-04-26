@@ -189,6 +189,53 @@ class TestAnalystSkillMocked:
         assert mock_instance.generate.called
         assert isinstance(result, str)
 
+    @pytest.mark.deterministic
+    @patch('skills.base.LLMClient')
+    def test_analyst_run_with_evidence_pack(self, mock_llm_class):
+        from skills.schemas import EvidenceItem, EvidencePack
+
+        mock_instance = MagicMock()
+        mock_instance.model_for_role.return_value = "test-model"
+        mock_instance.generate.return_value = Mock(response="## Análise\nDocker é rápido")
+        mock_llm_class.return_value = mock_instance
+
+        mock_memory = MagicMock()
+        mock_memory.get_lessons_for_prompt.return_value = ""
+        mock_memory.get.return_value = None
+
+        analyst = AnalystSkill(mock_memory)
+        pack = EvidencePack(
+            ferramentas="docker",
+            foco="instalação",
+            retained_urls=["https://docs.docker.com/get-started/"],
+            items=[
+                EvidenceItem(
+                    id="docker_abc",
+                    tool="docker",
+                    topic="docker",
+                    claim="Docker requires 4GB RAM",
+                    source_url="https://docs.docker.com/get-started/",
+                    source_quality="docs",
+                    evidence="Docker requires 4GB RAM minimum.",
+                    confidence=1.0,
+                )
+            ],
+        )
+
+        result = analyst.run(
+            research="fallback research",
+            ferramentas="docker",
+            contexto="production",
+            foco="instalação",
+            evidence_pack=pack,
+        )
+
+        assert mock_instance.generate.called
+        # evidence_block should appear in the prompt
+        call_kwargs = mock_instance.generate.call_args
+        prompt_text = str(call_kwargs)
+        assert "docs.docker.com" in prompt_text
+
 
 class TestWriterSkillMocked:
     """Testes de Writer com LLM mockado."""

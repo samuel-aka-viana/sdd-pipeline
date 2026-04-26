@@ -51,6 +51,7 @@ def _run_sequential_analysis(pipeline, research, ferramentas, contexto, foco, qu
         try:
             return pipeline.analyst.run(
                 research=research,
+                evidence_pack=evidence_pack,
                 ferramentas=ferramentas,
                 contexto=contexto,
                 foco=foco,
@@ -69,6 +70,7 @@ def _run_parallel_analysis(pipeline, research, ferramentas, contexto, aspects, q
                     pool.submit(
                         pipeline.analyst.run,
                         research=research,
+                        evidence_pack=evidence_pack,
                         ferramentas=ferramentas,
                         contexto=contexto,
                         foco=aspect,
