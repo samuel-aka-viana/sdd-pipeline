@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from llm import LLMClient
-from prompts.manager import PromptManager
+from skills.prompts.manager import PromptManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class SkillBase:
         self.memory = memory
         self.spec = yaml.safe_load(Path(spec_path).read_text())
         self.llm = LLMClient(spec_path)
-        self.prompts = PromptManager(memory, prompts_dir="prompts")
+        self.prompts = PromptManager(memory, prompts_dir="skills/prompts")
         self.model = self.llm.model_for_role(self.ROLE)
         self.chroma = chroma
 

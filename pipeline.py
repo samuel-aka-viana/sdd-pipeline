@@ -24,7 +24,7 @@ from skills.evidence_builder import EvidenceBuilderSkill
 from skills.router import ToolTypeRouter
 from validators.template_validator import TemplateValidator
 from utils.logger import PipelineLogger
-from prompts.manager import PromptManager
+from skills.prompts.manager import PromptManager
 from llm import LLMClient
 from utils import extract_json_object
 from utils.article_sanitizer import ArticleSanitizer
