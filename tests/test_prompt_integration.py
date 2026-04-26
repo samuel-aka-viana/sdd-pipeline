@@ -3,8 +3,7 @@ from pathlib import Path
 
 from memory.memory_store import MemoryStore
 from pipeline import SDDPipeline
-from skills.critic import CriticSkill
-from skills.researcher import ResearcherSkill
+from sdd.agents import CriticSkill, ResearcherSkill
 
 
 def test_build_targeted_research_questions_uses_prompt_llm(monkeypatch):

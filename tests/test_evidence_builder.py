@@ -31,7 +31,7 @@ def test_evidence_gap_valid():
     assert gap.topic == "podman"
 
 
-from skills.evidence_builder import EvidenceBuilderSkill
+from sdd.agents import EvidenceBuilderSkill
 
 
 RESEARCH_WITH_URLS = """\

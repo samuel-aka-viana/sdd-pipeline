@@ -8,10 +8,7 @@ Estes testes mocam as chamadas LLM para tornar os testes:
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from skills.researcher import ResearcherSkill
-from skills.analyst import AnalystSkill
-from skills.writer import WriterSkill
-from skills.critic import CriticSkill
+from sdd.agents import ResearcherSkill, AnalystSkill, WriterSkill, CriticSkill
 
 
 class TestResearcherSkillMocked:
