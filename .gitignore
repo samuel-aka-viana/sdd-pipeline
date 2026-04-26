@@ -2,8 +2,8 @@
 .env
 .worktrees/
 .memory/
-output/
-artigos/
+# output/
+# artigos/
 .idea
 .vscode
 */__pycache__/
