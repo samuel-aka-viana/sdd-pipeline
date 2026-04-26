@@ -1,16 +1,10 @@
 # SDD Tech Writer
 
-Gerador local de artigos técnicos em português. O pipeline recebe ferramentas, contexto, foco e perguntas; pesquisa fontes técnicas, monta evidências, gera análise, escreve o artigo e passa por crítica determinística/semântica.
+A local technical article generator that operates entirely within the Ollama ecosystem. The pipeline ingests tools, context, focus areas, and questions; conducts technical source research; assembles evidence; generates analysis; writes the article; and subjects the output to deterministic and semantic critique.
 
-Fluxo atual:
+## Architecture Overview
 
-```text
-main.py
-  -> sdd.graph.runner.run_pipeline()
-  -> research -> evidence -> analysis -> writer -> critic -> finalize
-  -> output/article.md
 ```
-
 O caminho principal hoje é `main.py` + `sdd/graph/*` + `sdd/agents/*`. A arquitetura antiga baseada em `pipeline.py`, `skills/`, `pipeline_stages/` e `orchestration/` já foi removida.
 
 ---
@@ -232,3 +226,66 @@ O `ruff` ainda falha por complexidade (`C901`) em pontos estruturais antigos:
 - Blacklist deve bloquear domínios claramente fracos; não bloquear docs oficiais, vendor docs ou repositórios úteis sem evidência.
 - Se trocar embedding do Chroma, reindexar a collection.
 - Antes de declarar pronto: `uv run pytest -q`; depois atacar `ruff` quando a mudança tocar arquivos com lint.
+                              ┌─────────────────────────────────────────────────────────────┐
+                              │                     SDD Tech Writer                         │
+                              │              (Local Technical Article Generator)            │
+                              └─────────────────────────────────────────────────────────────┘
+                                                                     │
+                                                                     ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                          ENTRY POINT                                                        │
+│  ┌─────────────┐    ┌─────────────┐    ┌────────────────────────────────────────────────────────────────────────────────┐ │
+│  │   User      │───▶│  main.py    │───▶│  CLI Prompts (cli/prompts.py) - collects tool, context, focus, questions        │ │
+│  │   Input     │    │ (CLI Entry) │    │  Optional: reuse URLs/research from prior runs                                  │ │
+│  └─────────────┘    └─────────────┘    └────────────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                                     │
+                                                                     ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                   LANGGRAPH ORCHESTRATION                                                   │
+│                                                  (sdd/graph/runner.py)                                                      │
+│                                                                                                                             │
+│   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐            │
+│   │  State Graph    │    │   MemorySaver   │    │  State (state)  │    │  Nodes (nodes)  │    │ Routing (routing│            │
+│   │   (Compiled)    │────│  (Persistence)  │────│ PipelineState   │────│  Agent Nodes    │────│  Deterministic) │            │
+│   └─────────────────┘    └─────────────────┘    └─────────────────┘    └───────────────────┘    └─────────────────┘            │
+│           │                                                                                                                 │
+│           ▼                                                                                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐     │
+│   │                                          PIPELINE EXECUTION FLOW                                                │     │
+│   │                                                                                                                 │     │
+│   │   ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      │     │
+│   │   │ research │─────▶│ evidence │─────▶│ analysis │─────▶│  writer  │─────▶│  critic  │─────▶│ finalize │      │     │
+│   │   │   Node   │      │   Node   │      │   Node   │      │   Node   │      │   Node   │      │   Node   │      │     │
+│   │   └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘      │     │
+│   │        │                                                                               │                      │     │
+│   │        │                    ┌─────────────────────────────────────────────────────────┘                      │     │
+│   │        │                    │                              (routing decision: pass/fail)                   │     │
+│   │        │                    ▼                                                                               │     │
+│   │        │            ┌──────────────┐                                                                        │     │
+│   │        └───────────▶│ fail ───────▶│ (return to analysis/writer for revision)                               │     │
+│   │                     │   (loop)     │                                                                        │     │
+│   │                     └──────────────┘                                                                        │     │
+│   └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘     │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+        │                                                      │                                                      │
+        ▼                                                      ▼                                                      ▼
+┌─────────────────────────┐                  ┌─────────────────────────┐                  ┌─────────────────────────┐
+│    RESEARCH AGENT       │                  │    EVIDENCE AGENT       │                  │    ANALYST AGENT        │
+│ (sdd/agents/researcher) │                  │ (sdd/agents/evidence)   │                  │ (sdd/agents/analyst)    │
+│                         │                  │                         │                  │                         │
+│  ┌──────────────────┐   │                  │  ┌──────────────────┐   │                  │  ┌──────────────────┐   │
+│  │ Web Search       │   │                  │  │ EvidencePack     │   │                  │  │ Structured       │   │
+│  │ (search_tool)    │   │                  │  │ Builder          │   │                  │  │ Analysis         │   │
+│  └──────────────────┘   │                  │  └──────────────────┘   │                  │  └──────────────────┘   │
+│  ┌──────────────────┐   │                  │                          │                  │                          │
+│  │ Scraping         │   │                  │                          │                  │                          │
+│  │ (Crawl4AI)       │   │                  │                          │                  │                          │
+│  └──────────────────┘   │                  │                          │                  │                          │
+│         │               │                  │                          │                  │                          │
+│         ▼               │                  │                          │                  │                          │
+│  ┌──────────────────┐   │                  │                          │                  │                          │
+│  │ Chroma Vector    │   │                  │                          │                  │                          │
+│  │ Store Indexing   │   │                  │                          │                  │                          │
+│  └──────────────────┘   │                  │                          │                  │                          │
+└─────────────────────────┘                  └─────────────────────────┘                  └────────────────────────
