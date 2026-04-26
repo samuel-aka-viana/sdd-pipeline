@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from researcher_modules.run_flow import run_research
+from sdd.researcher_modules.run_flow import run_research
 
 
 class _MemoryStub:

@@ -1,6 +1,6 @@
 import numpy as np
 
-from skills.relevance_filter import RelevanceFilterSkill, ScoredUrl
+from sdd.relevance_filter import RelevanceFilterSkill, ScoredUrl
 
 
 def test_cosine_similarity_accepts_numpy_arrays():

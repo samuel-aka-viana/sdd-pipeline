@@ -15,7 +15,7 @@ class TestResearcherSkillMocked:
     """Testes de Researcher com LLM mockado."""
     
     @pytest.mark.deterministic
-    @patch('skills.researcher.LLMClient')
+    @patch('sdd.agents.researcher.LLMClient')
     def test_researcher_run_calls_llm_with_correct_role(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -54,7 +54,7 @@ class TestResearcherSkillMocked:
         assert len(result) > 0
 
     @pytest.mark.deterministic
-    @patch('skills.researcher.LLMClient')
+    @patch('sdd.agents.researcher.LLMClient')
     def test_researcher_run_builds_queries_correctly(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -85,7 +85,7 @@ class TestResearcherSkillMocked:
         assert any("docker" in query.lower() for query in queries)
 
     @pytest.mark.deterministic
-    @patch('skills.researcher.LLMClient')
+    @patch('sdd.agents.researcher.LLMClient')
     def test_researcher_handles_empty_search_results(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -115,7 +115,7 @@ class TestAnalystSkillMocked:
     """Testes de Analyst com LLM mockado."""
     
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_analyst_run_single_tool_mode(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -139,7 +139,7 @@ class TestAnalystSkillMocked:
         assert isinstance(result, str)
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_analyst_run_comparison_mode(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -163,7 +163,7 @@ class TestAnalystSkillMocked:
         assert isinstance(result, str)
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_analyst_run_integration_mode(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -187,7 +187,7 @@ class TestAnalystSkillMocked:
         assert isinstance(result, str)
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_analyst_run_with_evidence_pack(self, mock_llm_class):
         from sdd.schemas import EvidenceItem, EvidencePack
 
@@ -238,7 +238,7 @@ class TestWriterSkillMocked:
     """Testes de Writer com LLM mockado."""
     
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_writer_run_basic(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -297,7 +297,7 @@ Summary.
         assert "TLDR" in result or "tldr" in result.lower()
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_writer_run_with_correction_instructions(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -327,7 +327,7 @@ Summary.
         assert "Fix section X" in full_prompt
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_writer_run_weak_research_quality(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -356,7 +356,7 @@ Summary.
         assert "AVISO" in full_prompt
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_writer_run_with_evidence_pack(self, mock_llm_class):
         from sdd.schemas import EvidencePack
 
@@ -397,7 +397,7 @@ class TestCriticSkillMocked:
     """Testes de Critic com LLM mockado."""
     
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_critic_evaluate_deterministic_pass(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -450,7 +450,7 @@ Conclusion.
         assert result["layer"] == "semantic"
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_critic_evaluate_deterministic_fail(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -470,7 +470,7 @@ Conclusion.
         assert len(result["problems"]) > 0
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_critic_evaluate_semantic_fail(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -526,7 +526,7 @@ Conclusion.
         assert result["layer"] in ["semantic", "deterministic"]
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_critic_rejects_url_outside_evidence_pack(self, mock_llm_class):
         from sdd.schemas import EvidencePack
 
@@ -563,7 +563,7 @@ See https://docs.docker.com/install/ and https://rogue-site.com/docker for detai
         )
 
     @pytest.mark.deterministic
-    @patch('skills.base.LLMClient')
+    @patch('sdd.base.LLMClient')
     def test_critic_passes_when_all_urls_in_evidence_pack(self, mock_llm_class):
         from sdd.schemas import EvidencePack
 

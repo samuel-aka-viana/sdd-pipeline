@@ -5,19 +5,19 @@ from unittest.mock import Mock
 
 import pytest
 
-from researcher_modules.chain_run import finalize_chain_run, new_chain_run, write_chain_phase
-from researcher_modules.crawl4ai_config import build_crawl4ai_run_config
-from researcher_modules.debug_io import save_context_debug, save_html_debug
-from researcher_modules.markdown import (
+from sdd.researcher_modules.chain_run import finalize_chain_run, new_chain_run, write_chain_phase
+from sdd.researcher_modules.crawl4ai_config import build_crawl4ai_run_config
+from sdd.researcher_modules.debug_io import save_context_debug, save_html_debug
+from sdd.researcher_modules.markdown import (
     extract_best_markdown,
     extract_redirect_target,
     extract_section_structure,
     is_low_quality_text,
 )
-from researcher_modules.queries import build_queries, build_question_query
-from researcher_modules.relevance import filter_search_results
-from researcher_modules.scrape_async import async_crawl_task
-from researcher_modules.source_quality import infer_source_quality, load_domain_scrape_stats
+from sdd.researcher_modules.queries import build_queries, build_question_query
+from sdd.researcher_modules.relevance import filter_search_results
+from sdd.researcher_modules.scrape_async import async_crawl_task
+from sdd.researcher_modules.source_quality import infer_source_quality, load_domain_scrape_stats
 
 
 class DummyMarkdown:

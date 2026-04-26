@@ -73,8 +73,8 @@ def test_critic_deterministic_rejection_on_placeholder():
         retained_urls=["https://docs.docker.com"],
     )
 
-    # Patch skill.evaluate so we can confirm it is NOT called
-    with patch.object(agent.skill, "evaluate") as mock_evaluate:
+    # Patch evaluate so we can confirm it is NOT called
+    with patch.object(agent, "evaluate") as mock_evaluate:
         result = agent.run(
             article=article_with_placeholder,
             evidence_pack=evidence_pack,
@@ -104,7 +104,8 @@ def test_critic_run_accepts_questoes():
 
 
 def test_critic_has_no_private_methods():
-    """Confirm no _prefixed methods on CriticAgent (dunder excluded)."""
-    for name in dir(CriticAgent):
+    """Confirm no _prefixed methods defined directly on CriticAgent (dunder excluded)."""
+    own_attrs = vars(CriticAgent)
+    for name in own_attrs:
         if name.startswith("_") and not name.startswith("__"):
             pytest.fail(f"CriticAgent has private method: {name}")

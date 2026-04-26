@@ -1,6 +1,6 @@
 import re
 
-from researcher_modules.constants import (
+from sdd.researcher_modules.constants import (
     DEFAULT_QUERIES,
     FOCUS_QUERIES,
     GENERIC_KEYWORD_TERMS,

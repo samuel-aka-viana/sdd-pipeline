@@ -184,7 +184,7 @@ def test_html_debug_disabled_by_default(monkeypatch):
     """HTML_DEBUG_ENABLED must be False when SDD_HTML_DEBUG env is not set."""
     monkeypatch.delenv("SDD_HTML_DEBUG", raising=False)
     import importlib
-    import researcher_modules.constants as constants
+    import sdd.researcher_modules.constants as constants
     importlib.reload(constants)
     assert constants.HTML_DEBUG_ENABLED is False
 

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 
-from researcher_modules.constants import (
+from sdd.researcher_modules.constants import (
     HIGH_TRUST_DOMAIN_HINTS,
     MEDIUM_TRUST_DOMAINS,
     QNA_DOMAINS,
