@@ -1,0 +1,11 @@
+{
+  "tool": "nonexistent-tool",
+  "stats": {
+    "discovered": 0,
+    "ok": 0,
+    "fail": 0,
+    "snippet_fallback": 0,
+    "skipped": 0
+  },
+  "entries": []
+}

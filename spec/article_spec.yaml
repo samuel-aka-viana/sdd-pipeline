@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────────────────────
 # SDD Article Specification - Semantic Versioning
-# 
+#
 # This specification uses semantic versioning (major.minor.patch)
 # to track changes and ensure consistency across tool versions.
 # See spec_changelog below for the complete change history.
@@ -141,7 +141,6 @@ research:
       - "fastlaunchapi.dev"
       - "codezup.com"
       - "johal.in"
-      # Homônimos de "ministack" (hardware/áudio/loja) e páginas fora do escopo de software
       - "programming4.us"
       - "petapixel.com"
       - "storagereview.com"
@@ -160,10 +159,7 @@ research:
     max_results_per_query: 5
 
   relevance_filter:
-    # Limita as URLs incluídas no contexto do analyst.
-    # Prioridade: docs > usos (github/stackoverflow) > blog.
     max_urls: 30
-    # Rerank semântico via embeddings do Chroma (desempata dentro da categoria).
     rerank: true
 
 analysis:
@@ -192,13 +188,10 @@ pipeline:
 # ── Opção 1: OpenRouter free (ATUAL — descomentado) ─────────────
 models:
   researcher: "z-ai/glm-4.5-air:free"
-  analyst: "nousresearch/hermes-3-llama-3.1-405b:free"
+  analyst: "meta-llama/llama-3.3-70b-instruct:free"
   writer: "openai/gpt-oss-120b:free"
-  critic: "nousresearch/hermes-3-llama-3.1-405b:free"
-  # Opcional: modelo menor para sub-tarefas do critic (semantic_check, false-positive filter).
-  # Lookup: env LLM_MODEL_CRITIC_FAST > spec.models.critic_fast > critic default.
-  # Ex: critic_fast: "z-ai/glm-4.5-air:free"
-  critic_fast: "z-ai/glm-4.5-air:free"
+  critic: "gemma4:26b"
+  critic_fast: "qwen2.5:7b-instruct-q5_K_M"
 
 # ── Opção 2: Ollama local ───────────────────────────────────────
 # 3a) 8 GB RAM, CPU only (descomente para usar)
@@ -225,13 +218,12 @@ models:
 # ── LLM ──────────────────────────────────────────────────────────
 # Fonte principal: .env (LLM_PROVIDER)
 # Valores suportados no .env:
-#   ollama_local | ollama_cloud | openrouter_free
+#   ollama_local | openrouter_free
 # Campo abaixo é fallback para manter compatibilidade.
 
 llm:
   provider: "openrouter_free"
   timeout:
-    # Soma worst-case 1 pass = 960s; cabe + 1 retry (writer+critic=540s) em 1800s globais.
     researcher: 240
     analyst: 180
     writer: 360

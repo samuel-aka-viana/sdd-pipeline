@@ -1,0 +1,108 @@
+{
+  "tool": "github actions",
+  "stats": {
+    "discovered": 65,
+    "ok": 12,
+    "fail": 0,
+    "snippet_fallback": 53,
+    "skipped": 53
+  },
+  "entries": [
+    {
+      "url": "https://github.com/benchmark-action/github-action-benchmark",
+      "status": "ok",
+      "elapsed_seconds": 5.2820775508880615,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://bencher.dev/docs/how-to/github-actions/",
+      "status": "ok",
+      "elapsed_seconds": 4.772494792938232,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://deepwiki.com/benchmark-action/github-action-benchmark/5.2-custom-benchmarks",
+      "status": "ok",
+      "elapsed_seconds": 2.999316692352295,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://runs-on.com/benchmarks/",
+      "status": "ok",
+      "elapsed_seconds": 3.6571953296661377,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://blog.martincostello.com/continuous-benchmarks-on-a-budget/",
+      "status": "ok",
+      "elapsed_seconds": 4.119052410125732,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://dev.to/_d7eb1c1703182e3ce1782/github-actions-vs-gitlab-cicd-complete-cicd-comparison-2026-48ac",
+      "status": "ok",
+      "elapsed_seconds": 3.39961576461792,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://devops-daily.com/comparisons/gitlab-ci-vs-github-actions",
+      "status": "ok",
+      "elapsed_seconds": 2.4829044342041016,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://tech-insider.org/github-vs-gitlab-2026-2/",
+      "status": "ok",
+      "elapsed_seconds": 2.730510711669922,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://fastbuilder.ai/blog/github-actions-vs-gitlab-ci",
+      "status": "ok",
+      "elapsed_seconds": 2.870652914047241,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://www.bytebase.com/blog/gitlab-ci-vs-github-actions/",
+      "status": "ok",
+      "elapsed_seconds": 2.8030807971954346,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://docs.computeblade.com/blog/2024/12/26/cicd_part_1",
+      "status": "ok",
+      "elapsed_seconds": 3.955540418624878,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    },
+    {
+      "url": "https://github.com/team",
+      "status": "ok",
+      "elapsed_seconds": 3.846426248550415,
+      "source": "crawl4ai",
+      "error_detail": "",
+      "quality_reason": ""
+    }
+  ]
+}

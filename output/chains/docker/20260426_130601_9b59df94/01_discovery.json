@@ -1,0 +1,6 @@
+{
+  "tool": "docker",
+  "max_scrapes_per_tool": 12,
+  "results_count": 0,
+  "entries": []
+}

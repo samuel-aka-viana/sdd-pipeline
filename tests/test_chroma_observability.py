@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from types import SimpleNamespace
 
 from enrichment.coordinator import EnrichmentCoordinator
-from logger import EventLog
+from utils.logger import EventLog
 from researcher_modules.cached_search import search_cached_content
 
 

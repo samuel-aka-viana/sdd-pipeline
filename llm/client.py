@@ -62,7 +62,7 @@ class LLMClient:
                 role=role, model=model, prompt=stable_prefix,
                 temperature=temperature, num_ctx=num_ctx, timeout=timeout,
             )
-        if self.runtime.provider_mode == "openrouter_free":
+        if self.runtime.provider_mode == "openrouter_free" and "/" in model:
             result = try_provider(
                 lambda: self.generate_openrouter(
                     role=role, model=model, prompt=stable_prefix,
@@ -90,7 +90,7 @@ class LLMClient:
     ) -> LLMResponse:
         errors_by_provider: list[str] = []
 
-        if self.runtime.provider_mode == "openrouter_free":
+        if self.runtime.provider_mode == "openrouter_free" and "/" in model:
             result = try_provider(
                 lambda: self.generate_openrouter(
                     role=role, model=model, prompt=prompt,

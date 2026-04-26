@@ -1,0 +1,20 @@
+{
+  "tool": "docker",
+  "stats": {
+    "discovered": 1,
+    "ok": 1,
+    "fail": 0,
+    "snippet_fallback": 0,
+    "skipped": 0
+  },
+  "entries": [
+    {
+      "url": "https://docker.com",
+      "status": "ok",
+      "elapsed_seconds": 2.47955322265625e-05,
+      "source": "",
+      "error_detail": "",
+      "quality_reason": ""
+    }
+  ]
+}

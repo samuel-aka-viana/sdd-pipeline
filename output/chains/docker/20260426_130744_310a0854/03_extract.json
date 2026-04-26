@@ -1,0 +1,5 @@
+{
+  "tool": "docker",
+  "max_chars_per_scrape": 16000,
+  "entries": []
+}

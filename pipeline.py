@@ -23,11 +23,11 @@ from skills.relevance_filter import RelevanceFilterSkill
 from skills.evidence_builder import EvidenceBuilderSkill
 from skills.router import ToolTypeRouter
 from validators.template_validator import TemplateValidator
-from logger import PipelineLogger
+from utils.logger import PipelineLogger
 from prompts.manager import PromptManager
 from llm import LLMClient
 from utils import extract_json_object
-from article_sanitizer import ArticleSanitizer
+from utils.article_sanitizer import ArticleSanitizer
 from enrichment.coordinator import EnrichmentCoordinator
 
 

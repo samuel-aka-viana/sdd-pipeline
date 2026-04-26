@@ -1321,6 +1321,218 @@ Critérios:
 
 ---
 
+## Ferramenta Única
+
+### Docker — containers em produção
+
+**Versão leigo:**
+```
+Ferramentas: docker
+Contexto:    quero subir aplicações em containers no servidor sem complicação
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  quais os requisitos mínimos de máquina e OS para docker em produção?
+  passo a passo de instalação e verificação de funcionamento?
+  como subir e parar um container com persistência de dados?
+  erros mais comuns no primeiro uso e como resolver?
+
+Critérios:
+  inclui comandos reais de instalação e verificação
+  explica volumes e portas sem jargão excessivo
+  traz checklist pós-instalação
+  referencia documentação oficial
+```
+
+**Versão técnica:**
+```
+Ferramentas: docker
+Contexto:    ambiente de produção Linux com múltiplos containers e CI/CD
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  impacto de overlay2 vs outros storage drivers no I/O?
+  tuning de ulimits, cgroups e OOM killer para containers críticos?
+  estratégia de build cache para reduzir tempo de CI?
+  métricas e alertas essenciais para containers em produção?
+
+Critérios:
+  inclui comandos de diagnóstico e tuning reproduzíveis
+  reporta impacto mensurável de cada ajuste
+  cobre logging driver e coleta de métricas
+  lista armadilhas comuns de segurança (privileged, bind mounts)
+```
+
+---
+
+### PostgreSQL — banco relacional
+
+**Versão leigo:**
+```
+Ferramentas: postgresql
+Contexto:    quero usar PostgreSQL para aplicação web com baixo esforço operacional
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  requisitos mínimos de hardware para produção leve?
+  passo a passo de instalação, criação de banco e primeiro acesso?
+  como fazer backup e restore com comandos simples?
+  erros mais frequentes no início e como diagnosticá-los?
+
+Critérios:
+  inclui comandos reais de setup e verificação
+  explica roles e permissões sem jargão excessivo
+  traz rotina mínima de backup funcional
+  referencia documentação oficial
+```
+
+**Versão técnica:**
+```
+Ferramentas: postgresql
+Contexto:    aplicação com carga mista OLTP e consultas analíticas
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  parâmetros de shared_buffers, work_mem e effective_cache_size por perfil de carga?
+  latência p95 de queries com e sem índices em tabelas grandes?
+  impacto de VACUUM, autovacuum e bloat no desempenho?
+  estratégia de connection pooling (PgBouncer) e quando é obrigatório?
+
+Critérios:
+  benchmark reproduzível com pgbench ou dataset real
+  reporta latência, throughput e uso de memória
+  inclui queries de diagnóstico (pg_stat_statements, pg_stat_activity)
+  detalha tuning mínimo para produção
+```
+
+---
+
+### Nginx — reverse proxy e web server
+
+**Versão leigo:**
+```
+Ferramentas: nginx
+Contexto:    quero usar nginx como proxy reverso para aplicação web
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  passo a passo de instalação e configuração básica de proxy reverso?
+  como configurar HTTPS com certificado Let's Encrypt?
+  erros mais comuns de configuração e como depurar?
+  como testar se o nginx está funcionando corretamente?
+
+Critérios:
+  inclui config real de proxy reverso comentada
+  mostra comandos de teste e reload sem downtime
+  explica logs de acesso e erro
+  referencia documentação oficial
+```
+
+**Versão técnica:**
+```
+Ferramentas: nginx
+Contexto:    proxy reverso de alta disponibilidade com TLS e múltiplos upstreams
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  throughput máximo (req/s) por worker em carga mista estática/dinâmica?
+  impacto de keepalive, upstream keepalive e buffer sizes na latência p95?
+  tuning de worker_processes, worker_connections e open_file_cache?
+  estratégia de health check ativo e passive failover em upstream?
+
+Critérios:
+  benchmark reproduzível com wrk ou k6 e configuração descrita
+  reporta req/s, latência p50/p95 e uso de CPU
+  inclui config de upstream com keepalive e tuning
+  cobre reload zero-downtime e rotação de logs
+```
+
+---
+
+### Ansible — automação de infraestrutura
+
+**Versão leigo:**
+```
+Ferramentas: ansible
+Contexto:    quero automatizar configuração de servidores Linux sem agente
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  requisitos mínimos para controlar N servidores remotos?
+  passo a passo para primeiro playbook funcional (instalar pacote + serviço)?
+  como testar playbook sem aplicar mudanças reais?
+  erros mais comuns de SSH e inventário no primeiro uso?
+
+Critérios:
+  inclui inventário e playbook real mínimos
+  mostra uso de --check e --diff para dry-run
+  explica idempotência sem jargão excessivo
+  referencia documentação oficial
+```
+
+**Versão técnica:**
+```
+Ferramentas: ansible
+Contexto:    automação de infraestrutura em múltiplos ambientes com CI/CD
+Foco:        5 (integração)
+
+Perguntas (objetivas, anti-ruído):
+  estratégia de roles, collections e molecule para testes de playbook?
+  como gerenciar secrets com ansible-vault em pipeline de CI?
+  impacto de forks e pipelining no tempo de execução em larga escala?
+  como integrar com inventário dinâmico (AWS, GCP, Terraform state)?
+
+Critérios:
+  inclui estrutura de role com testes molecule reproduzíveis
+  mostra pipeline de CI com lint (ansible-lint) e test
+  reporta tempo de execução com e sem pipelining
+  cobre estratégia de versionamento de roles e collections
+```
+
+---
+
+### Helm — gerenciamento de pacotes Kubernetes
+
+**Versão leigo:**
+```
+Ferramentas: helm
+Contexto:    quero instalar e gerenciar aplicações no Kubernetes sem escrever YAML do zero
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  passo a passo para instalar primeiro chart e verificar funcionamento?
+  como customizar values sem modificar o chart original?
+  como atualizar e fazer rollback de um release?
+  erros mais comuns no primeiro uso e como depurar?
+
+Critérios:
+  inclui comandos reais de install, upgrade e rollback
+  explica values.yaml e override sem jargão excessivo
+  mostra como verificar estado do release
+  referencia repositórios de charts oficiais
+```
+
+**Versão técnica:**
+```
+Ferramentas: helm
+Contexto:    deploy de múltiplos serviços em Kubernetes com GitOps e ambientes distintos
+Foco:        5 (integração)
+
+Perguntas (objetivas, anti-ruído):
+  estratégia de umbrella chart vs charts independentes para monorepo?
+  como testar templates com helm unittest e lint em CI?
+  como gerenciar valores por ambiente (dev/staging/prod) com múltiplos values files?
+  integração com ArgoCD ou Flux para reconciliação automática?
+
+Critérios:
+  inclui estrutura de chart com testes reproduzíveis
+  mostra pipeline de CI com helm lint, template e unittest
+  cobre estratégia de versionamento semântico de charts
+  detalha trade-offs de Helm vs Kustomize para GitOps
+```
+
+---
+
 ## Referência rápida — foco para benchmark
 
 | Situação | Foco recomendado |

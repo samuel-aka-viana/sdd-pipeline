@@ -1,0 +1,16 @@
+{
+  "tool": "gitlab ci",
+  "foco": "performance / throughput",
+  "context_chars": 125039,
+  "report_chars": 4366,
+  "scrape_stats": {
+    "discovered": 49,
+    "ok": 11,
+    "fail": 1,
+    "snippet_fallback": 37,
+    "skipped": 37
+  },
+  "context_debug_file": "output/debug_context_gitlab_ci.md",
+  "legacy_research_file": "output/debug_research_gitlab_ci.md",
+  "chain_run_id": "20260426_130342_a72e2c80"
+}

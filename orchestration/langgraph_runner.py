@@ -351,6 +351,7 @@ class LangGraphOrchestrator:
             research_enrichment_count=research_enrichment_count,
             stagnant_iterations=stagnant_iterations,
             evaluation=evaluation,
+            research_quality=research_quality,
         )
         action = decision.get("action", "RETRY_WRITER")
         priority_fixes = decision.get("priority_fixes", [])

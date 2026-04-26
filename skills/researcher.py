@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Any
 
 from llm import LLMClient
-from logger import EventLog
+from utils.logger import EventLog
 from prompts.manager import PromptManager
 
 from memory.research_chroma import ResearchChroma

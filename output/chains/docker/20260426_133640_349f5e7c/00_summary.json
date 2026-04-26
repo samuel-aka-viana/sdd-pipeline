@@ -1,0 +1,28 @@
+{
+  "tool": "docker",
+  "foco": "performance / throughput",
+  "alternative": "kubernetes",
+  "run_id": "20260426_133640_349f5e7c",
+  "started_at": "2026-04-26T13:36:40.653372",
+  "finished_at": "2026-04-26T13:36:40.656620",
+  "files": {
+    "discovery": "output/chains/docker/20260426_133640_349f5e7c/01_discovery.json",
+    "scrape": "output/chains/docker/20260426_133640_349f5e7c/02_scrape.json",
+    "extract": "output/chains/docker/20260426_133640_349f5e7c/03_extract.json",
+    "index": "output/chains/docker/20260426_133640_349f5e7c/04_index.json",
+    "synthesis_eval": "output/chains/docker/20260426_133640_349f5e7c/05_synthesis_eval.json"
+  },
+  "counts": {
+    "discovery": 0,
+    "scrape": 0,
+    "extract": 0,
+    "index": 0
+  },
+  "scrape_stats": {
+    "discovered": 0,
+    "ok": 0,
+    "fail": 0,
+    "snippet_fallback": 0,
+    "skipped": 0
+  }
+}

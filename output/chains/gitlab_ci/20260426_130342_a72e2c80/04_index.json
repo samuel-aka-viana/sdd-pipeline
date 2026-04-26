@@ -1,0 +1,83 @@
+{
+  "tool": "gitlab ci",
+  "enabled": true,
+  "entries": [
+    {
+      "url": "https://assist-software.net/blog/benchmarking-testing-vs-performance-testing-applications-know-difference",
+      "success": true,
+      "content_chars": 17334,
+      "chunk_count": 33,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://clickhouse.com/blog/how-gitlab-uses-clickhouse-to-scale-analytical-workloads",
+      "success": true,
+      "content_chars": 16061,
+      "chunk_count": 29,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://dev.to/alex_aslam/gitlab-ci-vs-github-actions-which-cicd-giant-fits-your-workflow-4mp1",
+      "success": true,
+      "content_chars": 3490,
+      "chunk_count": 7,
+      "source_quality": "medium"
+    },
+    {
+      "url": "https://knapsackpro.com/ci_comparisons/github-actions/vs/gitlab-ci",
+      "success": true,
+      "content_chars": 5857,
+      "chunk_count": 12,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://devops-daily.com/comparisons/gitlab-ci-vs-github-actions",
+      "success": true,
+      "content_chars": 14942,
+      "chunk_count": 27,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://faun.pub/do-i-use-gitlab-ci-vs-github-actions-for-my-ci-cd-pipelines-c746a0f73d4a?gi=173bc0a98936",
+      "success": true,
+      "content_chars": 985,
+      "chunk_count": 2,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://knapsackpro.com/ci_comparisons/gitlab-ci/vs/github-actions",
+      "success": true,
+      "content_chars": 5857,
+      "chunk_count": 12,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://docs.gitlab.com/ci/yaml/",
+      "success": true,
+      "content_chars": 110076,
+      "chunk_count": 243,
+      "source_quality": "trusted"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/blog/optimizing-devsecops-workflows-with-gitlab-conditional-ci-cd-pipelines/",
+      "success": true,
+      "content_chars": 9061,
+      "chunk_count": 16,
+      "source_quality": "trusted"
+    },
+    {
+      "url": "https://dev.to/drakulavich/gitlab-ci-cache-and-artifacts-explained-by-example-2opi",
+      "success": true,
+      "content_chars": 12229,
+      "chunk_count": 24,
+      "source_quality": "medium"
+    },
+    {
+      "url": "https://www.nova-labs.net/gitlab-self-hosted-pipeline-for-docker-images/",
+      "success": true,
+      "content_chars": 10034,
+      "chunk_count": 22,
+      "source_quality": "unknown"
+    }
+  ]
+}

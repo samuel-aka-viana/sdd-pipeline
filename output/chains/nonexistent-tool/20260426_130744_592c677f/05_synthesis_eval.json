@@ -1,0 +1,16 @@
+{
+  "tool": "nonexistent-tool",
+  "foco": "comparação geral",
+  "context_chars": 0,
+  "report_chars": 13,
+  "scrape_stats": {
+    "discovered": 0,
+    "ok": 0,
+    "fail": 0,
+    "snippet_fallback": 0,
+    "skipped": 0
+  },
+  "context_debug_file": "output/debug_context_nonexistent-tool.md",
+  "legacy_research_file": "output/debug_research_nonexistent-tool.md",
+  "chain_run_id": "20260426_130744_592c677f"
+}

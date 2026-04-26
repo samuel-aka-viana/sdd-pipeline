@@ -1,0 +1,13 @@
+{
+  "tool": "docker",
+  "enabled": true,
+  "entries": [
+    {
+      "url": "https://docker.com",
+      "success": true,
+      "content_chars": 33,
+      "chunk_count": 0,
+      "source_quality": "unknown"
+    }
+  ]
+}

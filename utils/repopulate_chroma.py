@@ -200,7 +200,7 @@ def main():
 
     if success:
         console.print("\n[bold]Próximos passos:[/bold]")
-        console.print("  1. python test_chroma_queries.py")
+        console.print("  1. python -m utils.test_chroma_queries")
         console.print("  2. Escolha [1] para ver estatísticas")
         console.print("  3. Escolha [3] para fazer buscas")
 

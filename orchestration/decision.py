@@ -10,6 +10,7 @@ def decide_retry_or_finalize(
     research_enrichment_count: int,
     stagnant_iterations: int,
     evaluation: dict,
+    research_quality: str = "strong",
 ) -> dict:
     approved = bool(evaluation.get("approved"))
     if approved:
@@ -19,55 +20,14 @@ def decide_retry_or_finalize(
     if stagnant_iterations >= pipeline.max_stagnant_iterations:
         return {"action": "FINALIZE_INCOMPLETE", "reason": "stagnation", "priority_fixes": []}
 
-    prompt = pipeline.prompts.get(
-        "orchestrator",
-        "decide_retry_or_finalize",
-        ferramentas=ferramentas,
-        foco=foco,
-        iteration=iteration,
-        max_iterations=pipeline.max_iterations,
-        research_enrichment_count=research_enrichment_count,
-        max_research_enrichments=pipeline.max_research_enrichments,
-        stagnant_iterations=stagnant_iterations,
-        max_stagnant_iterations=pipeline.max_stagnant_iterations,
-        approved=approved,
-        layer=evaluation.get("layer", ""),
-        problems=evaluation.get("problems", []),
-        warnings=evaluation.get("warnings", []),
-    )
-    if prompt:
-        try:
-            from skills.schemas import OrchestratorDecision
-            parsed = pipeline.llm.generate_structured(
-                role="critic",
-                model=pipeline.orchestrator_model,
-                prompt=prompt,
-                schema=OrchestratorDecision,
-                temperature=pipeline.orchestrator_temp,
-                num_ctx=pipeline.orchestrator_ctx_len,
-                timeout=pipeline.orchestrator_timeout,
-            )
-            decision = {
-                "action": parsed.action,
-                "reason": parsed.reason,
-                "priority_fixes": parsed.priority_fixes,
-            }
-            pipeline.memory.log_event("orchestrator_decision_llm", {
-                "action": parsed.action,
-                "reason": str(parsed.reason)[:200],
-            })
-            return decision
-        except Exception as exc:
-            pipeline.memory.log_event("orchestrator_decision_llm_failed", {"error": str(exc)})
-
     should_enrich = pipeline.should_enrich_research_after_critic_failure(
         evaluation=evaluation,
-        research_quality="weak",
+        research_quality=research_quality,
     )
     return {
         "action": "ENRICH_RESEARCH" if should_enrich else "RETRY_WRITER",
         "reason": "deterministic_fallback",
-        "priority_fixes": [],
+        "priority_fixes": evaluation.get("problems", []),
     }
 
 

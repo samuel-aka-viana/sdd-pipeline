@@ -1,0 +1,91 @@
+{
+  "tool": "ansible",
+  "max_chars_per_scrape": 16000,
+  "entries": [
+    {
+      "url": "https://www.techblitz.ai/ansible-alternatives/",
+      "status": "ok",
+      "chars": 589,
+      "truncated": false,
+      "preview_100": "![](https://l.cdn-fileserver.com/bping.php?r=1777226531495&vgd_cage=4&vgd_oreqf=one&crid=710956738&c"
+    },
+    {
+      "url": "https://www.guru99.com/ansible-tutorial.html",
+      "status": "ok",
+      "chars": 16000,
+      "truncated": true,
+      "preview_100": "is an open source automation and orchestration tool for software provisioning, configuration managem"
+    },
+    {
+      "url": "https://www.env0.com/blog/the-ultimate-ansible-tutorial-a-step-by-step-guide",
+      "status": "ok",
+      "chars": 16000,
+      "truncated": true,
+      "preview_100": "Manual server configuration is reproducible in theory and chaotic in practice. Every engineer has a "
+    },
+    {
+      "url": "https://www.whizlabs.com/blog/ansible-introduction/",
+      "status": "ok",
+      "chars": 13071,
+      "truncated": false,
+      "preview_100": "Looking at the present state of affairs, automation is the new trend in every sector. Automation fin"
+    },
+    {
+      "url": "https://www.devopsschool.com/blog/the-complete-ansible-tutorial-concepts-architecture-playbooks-and-real-world-examples/",
+      "status": "ok",
+      "chars": 7762,
+      "truncated": false,
+      "preview_100": "Explore trusted cosmetic hospitals and make a confident choice for your transformation. \n“Invest in "
+    },
+    {
+      "url": "https://docs.ansible.com/projects/ansible/latest/tips_tricks/sample_setup.html",
+      "status": "ok",
+      "chars": 8338,
+      "truncated": false,
+      "preview_100": "\n\nJoin us at to learn about Ansible Automation Platform | May 11-14, 2026\nThis is the (stable) Ansib"
+    },
+    {
+      "url": "https://docs.ansible.com/projects/ansible/latest/dev_guide/developing_plugins.html",
+      "status": "ok",
+      "chars": 16000,
+      "truncated": true,
+      "preview_100": "Join us at to learn about Ansible Automation Platform | May 11-14, 2026\nThis is the (stable) Ansible"
+    },
+    {
+      "url": "https://www.digitalocean.com/community/tutorials/configuration-management-101-writing-ansible-playbooks",
+      "status": "ok",
+      "chars": 16000,
+      "truncated": true,
+      "preview_100": "In a nutshell, server configuration management (also popularly referred to as IT Automation) is a so"
+    },
+    {
+      "url": "https://spacelift.io/blog/ansible-best-practices",
+      "status": "ok",
+      "chars": 15600,
+      "truncated": false,
+      "preview_100": "# 50+ Ansible Best Practices to Follow [Tips & Tricks]\nAnsible is one of the most popular open-sourc"
+    },
+    {
+      "url": "https://www.pluralsight.com/courses/getting-started-ansible",
+      "status": "ok",
+      "chars": 8619,
+      "truncated": false,
+      "preview_100": "What if you could specify WHAT a system should look like and another tool took care of making that p"
+    },
+    {
+      "url": "https://attuneops.io/top-5-ansible-alternatives/",
+      "status": "snippet_fallback",
+      "chars": 341,
+      "truncated": false,
+      "preview_100": "Ansibleis a server automation and configuration management tool that helps organizations maintain an",
+      "error": "crawl4ai_error"
+    },
+    {
+      "url": "https://spacelift.io/blog/ansible-alternatives",
+      "status": "ok",
+      "chars": 16000,
+      "truncated": true,
+      "preview_100": "# 13 Popular Ansible Alternatives You Should Know in 2026\nAutomation is very important in deploying "
+    }
+  ]
+}

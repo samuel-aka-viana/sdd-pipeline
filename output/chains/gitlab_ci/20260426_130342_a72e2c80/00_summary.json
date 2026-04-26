@@ -1,0 +1,28 @@
+{
+  "tool": "gitlab ci",
+  "foco": "performance / throughput",
+  "alternative": "github actions",
+  "run_id": "20260426_130342_a72e2c80",
+  "started_at": "2026-04-26T13:03:42.068660",
+  "finished_at": "2026-04-26T13:07:55.058988",
+  "files": {
+    "discovery": "output/chains/gitlab_ci/20260426_130342_a72e2c80/01_discovery.json",
+    "scrape": "output/chains/gitlab_ci/20260426_130342_a72e2c80/02_scrape.json",
+    "extract": "output/chains/gitlab_ci/20260426_130342_a72e2c80/03_extract.json",
+    "index": "output/chains/gitlab_ci/20260426_130342_a72e2c80/04_index.json",
+    "synthesis_eval": "output/chains/gitlab_ci/20260426_130342_a72e2c80/05_synthesis_eval.json"
+  },
+  "counts": {
+    "discovery": 49,
+    "scrape": 12,
+    "extract": 12,
+    "index": 11
+  },
+  "scrape_stats": {
+    "discovered": 49,
+    "ok": 11,
+    "fail": 1,
+    "snippet_fallback": 37,
+    "skipped": 37
+  }
+}

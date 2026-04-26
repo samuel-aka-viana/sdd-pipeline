@@ -1,0 +1,90 @@
+{
+  "tool": "github actions",
+  "enabled": true,
+  "entries": [
+    {
+      "url": "https://github.com/benchmark-action/github-action-benchmark",
+      "success": true,
+      "content_chars": 13659,
+      "chunk_count": 29,
+      "source_quality": "official"
+    },
+    {
+      "url": "https://bencher.dev/docs/how-to/github-actions/",
+      "success": true,
+      "content_chars": 11118,
+      "chunk_count": 24,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://deepwiki.com/benchmark-action/github-action-benchmark/5.2-custom-benchmarks",
+      "success": true,
+      "content_chars": 4019,
+      "chunk_count": 10,
+      "source_quality": "medium"
+    },
+    {
+      "url": "https://runs-on.com/benchmarks/",
+      "success": true,
+      "content_chars": 734,
+      "chunk_count": 2,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://blog.martincostello.com/continuous-benchmarks-on-a-budget/",
+      "success": true,
+      "content_chars": 20754,
+      "chunk_count": 39,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://dev.to/_d7eb1c1703182e3ce1782/github-actions-vs-gitlab-cicd-complete-cicd-comparison-2026-48ac",
+      "success": true,
+      "content_chars": 17771,
+      "chunk_count": 33,
+      "source_quality": "medium"
+    },
+    {
+      "url": "https://devops-daily.com/comparisons/gitlab-ci-vs-github-actions",
+      "success": true,
+      "content_chars": 14942,
+      "chunk_count": 27,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://tech-insider.org/github-vs-gitlab-2026-2/",
+      "success": true,
+      "content_chars": 29365,
+      "chunk_count": 56,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://fastbuilder.ai/blog/github-actions-vs-gitlab-ci",
+      "success": true,
+      "content_chars": 3550,
+      "chunk_count": 7,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://www.bytebase.com/blog/gitlab-ci-vs-github-actions/",
+      "success": true,
+      "content_chars": 3663,
+      "chunk_count": 8,
+      "source_quality": "unknown"
+    },
+    {
+      "url": "https://docs.computeblade.com/blog/2024/12/26/cicd_part_1",
+      "success": true,
+      "content_chars": 6707,
+      "chunk_count": 13,
+      "source_quality": "trusted"
+    },
+    {
+      "url": "https://github.com/team",
+      "success": true,
+      "content_chars": 2086,
+      "chunk_count": 4,
+      "source_quality": "official"
+    }
+  ]
+}

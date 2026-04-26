@@ -1,0 +1,15 @@
+{
+  "tool": "docker",
+  "max_scrapes_per_tool": 12,
+  "results_count": 1,
+  "entries": [
+    {
+      "query": "query1",
+      "url": "https://docker.com",
+      "title": "",
+      "snippet": "Docker info",
+      "selected_for_scrape": true,
+      "status": "queued"
+    }
+  ]
+}

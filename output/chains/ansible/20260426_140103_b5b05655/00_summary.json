@@ -1,0 +1,28 @@
+{
+  "tool": "ansible",
+  "foco": "integração",
+  "alternative": "",
+  "run_id": "20260426_140103_b5b05655",
+  "started_at": "2026-04-26T14:01:03.790751",
+  "finished_at": "2026-04-26T14:11:11.584686",
+  "files": {
+    "discovery": "output/chains/ansible/20260426_140103_b5b05655/01_discovery.json",
+    "scrape": "output/chains/ansible/20260426_140103_b5b05655/02_scrape.json",
+    "extract": "output/chains/ansible/20260426_140103_b5b05655/03_extract.json",
+    "index": "output/chains/ansible/20260426_140103_b5b05655/04_index.json",
+    "synthesis_eval": "output/chains/ansible/20260426_140103_b5b05655/05_synthesis_eval.json"
+  },
+  "counts": {
+    "discovery": 61,
+    "scrape": 12,
+    "extract": 12,
+    "index": 11
+  },
+  "scrape_stats": {
+    "discovered": 61,
+    "ok": 11,
+    "fail": 1,
+    "snippet_fallback": 49,
+    "skipped": 49
+  }
+}

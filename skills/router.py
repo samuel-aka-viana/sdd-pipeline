@@ -44,7 +44,7 @@ class ToolTypeRouter:
         },
         "llm_tools": {
             "ollama", "lm studio", "llama.cpp", "vllm", "text-generation-webui",
-            "ollama cloud", "lm-studio"
+            "lm-studio"
         },
         "analytics": {
             "polars", "pandas", "spark", "dbt", "sqlmesh", "dbt cloud", "apache spark",

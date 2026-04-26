@@ -1,0 +1,28 @@
+{
+  "tool": "nonexistent-tool",
+  "foco": "comparação geral",
+  "alternative": "",
+  "run_id": "20260426_130744_592c677f",
+  "started_at": "2026-04-26T13:07:44.594562",
+  "finished_at": "2026-04-26T13:07:44.596937",
+  "files": {
+    "discovery": "output/chains/nonexistent-tool/20260426_130744_592c677f/01_discovery.json",
+    "scrape": "output/chains/nonexistent-tool/20260426_130744_592c677f/02_scrape.json",
+    "extract": "output/chains/nonexistent-tool/20260426_130744_592c677f/03_extract.json",
+    "index": "output/chains/nonexistent-tool/20260426_130744_592c677f/04_index.json",
+    "synthesis_eval": "output/chains/nonexistent-tool/20260426_130744_592c677f/05_synthesis_eval.json"
+  },
+  "counts": {
+    "discovery": 0,
+    "scrape": 0,
+    "extract": 0,
+    "index": 0
+  },
+  "scrape_stats": {
+    "discovered": 0,
+    "ok": 0,
+    "fail": 0,
+    "snippet_fallback": 0,
+    "skipped": 0
+  }
+}

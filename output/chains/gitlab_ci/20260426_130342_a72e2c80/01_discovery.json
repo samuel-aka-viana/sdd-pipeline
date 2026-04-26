@@ -1,0 +1,436 @@
+{
+  "tool": "gitlab ci",
+  "max_scrapes_per_tool": 12,
+  "results_count": 49,
+  "entries": [
+    {
+      "query": "gitlab ci benchmark throughput latency results",
+      "url": "https://assist-software.net/blog/benchmarking-testing-vs-performance-testing-applications-know-difference",
+      "title": "Benchmarking vs. Performance Testing | ASSIST Software",
+      "snippet": "By incorporating this script into aCI/CD pipeline (such as GitHub Actions, Jenkins,GitLabCI/CD, or Azure DevOps), you can automate performance ...",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci benchmark throughput latency results",
+      "url": "https://clickhouse.com/blog/how-gitlab-uses-clickhouse-to-scale-analytical-workloads",
+      "title": "How GitLab serves sub-second analytics to 50 million users",
+      "snippet": "...benchmarks- it aligned with ... Querylatency: At the 95th percentile, ClickHouse queries returnedresultsfar faster, with fewer outliers.",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci vs github actions performance comparison numbers",
+      "url": "https://dev.to/alex_aslam/gitlab-ci-vs-github-actions-which-cicd-giant-fits-your-workflow-4mp1",
+      "title": "GitLab CI vs. GitHub Actions: Which CI/CD Giant Fits Your Workflow? 🚀 - DEV Community",
+      "snippet": "May 10, 2025 -GitLab CI: Best for GitLab-native tools (Kubernetes, SAST). GitHub Actions: Dominates with third-party apps (Vercel, Terraform, Discord).",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci vs github actions performance comparison numbers",
+      "url": "https://knapsackpro.com/ci_comparisons/github-actions/vs/gitlab-ci",
+      "title": "Github Actions vs Gitlab CI comparison of Continuous Integration servers",
+      "snippet": "GitHub Actions CI Config for RSpec, Cucumber, Minitest on Ruby on Rails with MySQL, Redis, Elasticsearch, and Parallel Tests · Run Parallel Jobs for RSpec and Cypress on GitLab CI to Speed Up Testing",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci vs github actions performance comparison numbers",
+      "url": "https://devops-daily.com/comparisons/gitlab-ci-vs-github-actions",
+      "title": "GitLab CI vs GitHub Actions: Feature Comparison, Pros/Cons, and Verdict | DevOps Daily | DevOps Daily",
+      "snippet": "3 weeks ago -A detailed comparison of GitLab CI and GitHub Actions for continuous integration and delivery. Covers pipeline configuration, runner management, security features, and pricing to help you choose the right CI/CD platform.",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci vs github actions performance comparison numbers",
+      "url": "https://faun.pub/do-i-use-gitlab-ci-vs-github-actions-for-my-ci-cd-pipelines-c746a0f73d4a?gi=173bc0a98936",
+      "title": "Do I use GitLab CI vs GitHub Actions for my CI/CD pipelines — 3/3",
+      "snippet": "May 11, 2025 -Do I use GitLab CI vs GitHub Actions for my CI/CD pipelines — 3/3 Introduction After implementing our Symfony task management application with both GitLab CI and GitHub Actions, it’s time to take …",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci vs github actions performance comparison numbers",
+      "url": "https://knapsackpro.com/ci_comparisons/gitlab-ci/vs/github-actions",
+      "title": "Gitlab CI vs Github Actions comparison of Continuous Integration servers",
+      "snippet": "Run Parallel Jobs for RSpec and Cypress on GitLab CI to Speed Up Testing · Parallelize RSpec on GitHub Actions with Jobs and Caching for CI",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci tuning performance production best practices",
+      "url": "https://docs.gitlab.com/ci/yaml/",
+      "title": "CI/CD YAML syntax reference |GitLabDocs",
+      "snippet": "Offering:GitLab.com,GitLabSelf-Managed,GitLabDedicated. This document lists the configuration options for theGitLab.gitlab-ci.yml file. This file is where you define theCI/CD jobs that make up your pipeline.",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci tuning performance production best practices",
+      "url": "https://developer.mozilla.org/en-US/blog/optimizing-devsecops-workflows-with-gitlab-conditional-ci-cd-pipelines/",
+      "title": "Optimizing DevSecOps workflows withGitLab's conditionalCI/CD...",
+      "snippet": "GitLabAutoDevOps is an example. It uses an opinionatedbest-practicecollection ofGitLabCI/CD templates and rules to detect the technology stack used. AutoDevOps creates relevant jobs that take your application all the way toproductionfrom a ",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci tuning performance production best practices",
+      "url": "https://dev.to/drakulavich/gitlab-ci-cache-and-artifacts-explained-by-example-2opi",
+      "title": "GitLabCI: Cache and Artifacts explained by example - DEV Community",
+      "snippet": "Let's discuss the difference betweenGitLabcache and artifacts. I'll show how to configure the Pipeline for the Node.js app in a pragmatic way to achievegoodperformanceand resource utilization.",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci tuning performance production best practices",
+      "url": "https://faun.pub/build-your-first-symfony-gitlab-ci-cd-pipeline-03f91520a109",
+      "title": "Build Your First SymfonyGitLabCI/CD Pipeline... | FAUN.dev()",
+      "snippet": "GitLab-Specific Configuration. The .gitlab-ci.yml leveragesGitLab's built-in features: Artifacts & caching: Composer cache and vendor/ are shared between jobs. Docker-in-Docker: Provides full control to build, tag and push images.",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci tuning performance production best practices",
+      "url": "https://www.nova-labs.net/gitlab-self-hosted-pipeline-for-docker-images/",
+      "title": "GitLabSelf-Hosted Pipeline for Docker Images | Nova-Labs",
+      "snippet": "What You’ll NeedA self-hostedGitLabinstance.Basic knowledge ofGitLabCI/CD concepts.The update isperformedusing a curl request to theGitLabAPI",
+      "selected_for_scrape": true,
+      "status": "queued"
+    },
+    {
+      "query": "gitlab ci load test results concurrent connections",
+      "url": "https://docs.gitlab.com/ci/variables/predefined_variables/",
+      "title": "PredefinedCI/CD variables reference |GitLabDocs",
+      "snippet": "Offering:GitLab.com,GitLabSelf-Managed,GitLabDedicated. PredefinedCI/CD variables are available in everyGitLabCI/CD pipeline. Avoid overriding predefined variables, as it can cause the pipeline to behave unexpectedly. Variable availability.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci load test results concurrent connections",
+      "url": "https://github.com/kprasad7/k8s-loadtest-ci",
+      "title": "GitHub - kprasad7/k8s-loadtest-ci: Goodnotes assignment",
+      "snippet": "artifacts/load-test-results.md ←Loadmetrics (human-readable).foo.localhost: avg 1.41ms, p95 1.63ms → Latency is stable & predictable bar.localhost: 322 req/s → Service can handle ~300concurrentusers 0 failures → No timeouts or errors. Resou",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci load test results concurrent connections",
+      "url": "https://devops.stackexchange.com/questions/9359/gitlab-ci-error-during-connect-get-http-docker2375-v1-40-containers-jsonall",
+      "title": "GitlabCIerror duringconnect: Get http://docker...",
+      "snippet": "Also, didgitlab-runner register and passed the correct host and token fromgitlab.comci/cd settings.Thegitlabcifile: image: docker:latest services: - docker:dind stages: -test.test-build: stage:testscript: - echo \"Fine!\" - docker info tags: ",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci load test results concurrent connections",
+      "url": "https://hub.docker.com/r/gitlab/gitlab-runner",
+      "title": "gitlab/gitlab-runner - Docker Image",
+      "snippet": "GitLabCIMulti Runner used to fetch and run pipeline jobs withGitLabCI.gitlab/gitlab-runner repository overview.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci profiling CPU memory usage under load",
+      "url": "https://docs.gitlab.com/runner/",
+      "title": "GitLabRunner |GitLabDocs",
+      "snippet": "Offering:GitLab.com,GitLabSelf-Managed,GitLabDedicated.GitLabRunner is an application that works withGitLabCI/CD to run jobs in a pipeline.GitLabRunner has the following features. Run multiple jobs concurrently.Usemultiple tokens with multi",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci vs github actions requests per second benchmark",
+      "url": "https://dev.to/_d7eb1c1703182e3ce1782/github-actions-vs-gitlab-cicd-complete-cicd-comparison-2026-48ac",
+      "title": "GitHub Actions vs GitLab CI/CD: Complete CI/CD Comparison ...",
+      "snippet": "Mar 20, 2026 ·CompareGitHubActionsandGitLabCI/CD for continuous integration and deployment. Analyze workflow syntax, pricing, runner infrastructure, and DevOps integration.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci vs github actions requests per second benchmark",
+      "url": "https://medium.com/@the_atomic_architect/github-vs-gitlab-in-2025-who-wins-for-ci-cd-ai-and-self-hosting-2baa9c2078be",
+      "title": "GitHub vs GitLab (2025): CI/CD Speed, Pricing, Self-Hosting ...",
+      "snippet": "Nov 9, 2025 ·Real data from hundreds of builds comparesGitHubActionsandGitLabCI—costs, build times, AI review, and self-hosting—so you can choose the right platform fast.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci vs github actions requests per second benchmark",
+      "url": "https://tildalice.io/github-actions-vs-gitlab-ci-cache-speed-benchmark/",
+      "title": "GitHub Actions vs GitLab CI: Cache Speed at 2.1s vs 8.4s",
+      "snippet": "Mar 11, 2026 ·GitHubActionsvsGitLabCIcache speed test: 2.1s vs 10.5s for 400MB node_modules. Realbenchmarks, compression tricks, Docker layer caching.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci vs github actions requests per second benchmark",
+      "url": "https://lifetips.alibaba.com/tech-efficiency/github-actions-vs-gitlab-ci-which-fails-faster",
+      "title": "GitHub Actions vs GitLab CI: Which Fails Faster?",
+      "snippet": "Jan 8, 2026 ·GitHubActionsfails tests faster and delivers clearer error logs thanGitLabCIin most real-world monorepo and polyrepo setups. Enable fail-fast on matrix jobs, use structured logging with annotations, and route test suites by lan",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci performance optimization config flags",
+      "url": "https://docs.gitlab.com/development/pipelines/performance/",
+      "title": "CI configuration performance | GitLab Docs",
+      "snippet": "TheCI/CD Git strategy setting forgitlab-org/gitlabis Git clone, causing all jobs to fetch the same data, which maximizes the cache hit ratio. We use shallow clone to avoid downloading the full Git history for every job.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci performance optimization config flags",
+      "url": "https://docs.gitlab.co.jp/ee/ci/large_repositories/",
+      "title": "Optimize GitLab for large repositories",
+      "snippet": "For example, if your project contains a large number of tags that yourCIjobs don’t rely on, you could add --no-tags to the extraflagsto make your fetches faster and more compact.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci performance optimization config flags",
+      "url": "https://medium.com/@mosiko1234/optimizing-gitlab-ci-cd-pipelines-for-high-efficiency-f2ebbc046a89",
+      "title": "Optimizing GitLab CI/CD Pipelines for High-Efficiency - Medium",
+      "snippet": "Apr 7, 2024 ·GitLabCI/CD (Continuous Integration/Continuous Deployment) is a powerful tool used by developers to automate the testing and deployment of code. As projects grow in complexity, the need for an...",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci performance optimization config flags",
+      "url": "https://devopsil.com/articles/2026-03-21-gitlab-ci-pipeline-optimization-speed",
+      "title": "GitLab CI Pipeline Optimization: Caching, DAG, and Parallel ...",
+      "snippet": "Mar 20, 2026 ·Building Docker images insideGitLabCIis a common bottleneck. Docker-in-Docker (DinD) is the default, but Kaniko is faster and more secure. Docker-in-Docker (Slow, Requires Privileged) ... DinD requires privileged: true on the ",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci performance optimization config flags",
+      "url": "https://oneuptime.com/blog/post/2026-01-27-gitlab-ci-performance/view",
+      "title": "How to Optimize GitLab CI Pipeline Performance",
+      "snippet": "Jan 27, 2026 ·A comprehensive guide tooptimizingGitLabCIpipelines for faster builds, reduced resource consumption, and improved developer productivity.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci scalability limits production",
+      "url": "https://docs.gitlab.com/administration/instance_limits/",
+      "title": "GitLab application limits",
+      "snippet": "GitLab, like most large applications, enforceslimitsin certain features to maintain a minimum quality of performance. Allowing some features to be limitless could affect security, performance, data, or could even exhaust the allocated resou",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci scalability limits production",
+      "url": "https://docs.gitlab.co.jp/ee/architecture/blueprints/ci_scale/",
+      "title": "CI/CD Scaling | GitLab",
+      "snippet": "We are at thelimitsof vertical scaling of theCIprimary database nodes and we frequently see a negative impact of the ci_builds table on the overall performance, stability,scalabilityand predictability of theCIdatabaseGitLab.com depends on.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci scalability limits production",
+      "url": "https://pramodhm112.medium.com/deployment-scaling-best-practices-in-gitlab-90223319db55",
+      "title": "Deployment & Scaling Best Practices in GitLab",
+      "snippet": "Deployment & Scaling Best Practices Deploying applications reliably and scaling your infrastructure are critical for a successful DevOps practice.GitLab'sintegratedCI/CD and automation capabilities support various deployment strategies (lik",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci scalability limits production",
+      "url": "https://gitlab-docs-d6a9bb.gitlab.io/ee/development/scalability.html",
+      "title": "GitLab scalability | GitLab - gitlab-docs-d6a9bb.gitlab.io",
+      "snippet": "GitLabproduct documentation.GitLabscalabilityThis section describes the current architecture ofGitLabas it relates toscalabilityand reliability. Reference Architecture Overview diagram source -GitLabemployees only The diagram above shows aG",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci scalability limits production",
+      "url": "https://faun.dev/sensei/academy/go/cloud-native-cicd-with-gitlab-9ddf2c-b12fdd-50a685/cloud-native-gitlab-runners-on-kubernetes-scalab-2/concurrency-limits-and-request-concurrency-8d0fe0/",
+      "title": "Concurrency, Limits, and Request Concurrency | Cloud Native CI/CD with ...",
+      "snippet": "Concurrency,Limits, and Request ConcurrencyGitLabrunners launch jobs in parallel in containers to maximize resource utilization and reduce job wait times. However, running too many jobs concurrently can lead to resource contention, such as ",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci resource consumption idle vs peak",
+      "url": "https://about.gitlab.com/releases/2020/09/22/gitlab-13-4-released/",
+      "title": "GitLab 13.4 released with Vault for CI variables and Kubernetes",
+      "snippet": "InGitLab12.10,GitLabintroduced functionality forGitLabRunner to fetch and inject secrets intoCIjobs.GitLabis now expanding the JWT Vault ...",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci resource consumption idle vs peak",
+      "url": "https://about.gitlab.com/releases/2021/02/22/gitlab-13-9-released/",
+      "title": "GitLab 13.9 released with a Security Alert Dashboard and",
+      "snippet": "GitLab13.9 is now available to strengthen DevSecOps at scale, with a Security Alert Dashboard to triage high priority alerts, Maintenance Mode for ...",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci resource consumption idle vs peak",
+      "url": "https://about.gitlab.com/releases/2021/03/22/gitlab-13-10-released/",
+      "title": "GitLab 13.10 released with Admin Enhancements and Vulnerability",
+      "snippet": "InGitLab13.10, we are introducing a new .gitlab-ci.yml environment type keyword which will allow you to explicitly define the environment type and ...",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "github actions vs gitlab ci comparison",
+      "url": "https://thexz3dev.medium.com/feature-parity-comparison-gitlab-ci-cd-vs-github-actions-37401d3e3b1c",
+      "title": "Feature ParityComparison:GitLabCI/CDvs.GitHubActions",
+      "snippet": "FeatureComparison. BothGitLabCI/CD andGitHubActionsutilize YAML for configuration, providing a straightforward, human-readable format. However,GitLabCI/CD takes a step further with itsCILint tool, which validates your .gitlab-ci.yml file be",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "github actions vs gitlab ci comparison",
+      "url": "https://jcalloway.dev/github-actions-vs-gitlab-ci-2026-which-devops-pipeline-actually-delivers",
+      "title": "GitHubActionsvsGitLabCI2026: Which DevOps Pipeline Actually...",
+      "snippet": "GitLabCI: The Enterprise Powerhouse.GitLabCIdoesn't mess around. It's built for teams that need enterprise-grade features out of the box. The platform includes built-in security scanning, dependency checking, and a Docker registry — no thir",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "github actions vs gitlab ci comparison",
+      "url": "https://squareops.com/blog/jenkins-vs-github-actions-vs-gitlab-ci-2026/",
+      "title": "JenkinsvsGitHubActionsvsGitLabCI: 2026Comparison",
+      "snippet": "Comprehensive 2026comparisonof JenkinsvsGitHubActionsvsGitLabCI. Learn architecture, features, pricing, code examples, and when to choose eachCI/CD platform for your team.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "github actions vs gitlab ci advantages disadvantages",
+      "url": "https://dev.to/renzoflv/github-actions-vs-gitlab-ci-comparacion-completa-de-herramientas-cicd-2dj1",
+      "title": "GitHubActionsvsGitLabCI: Complete... - DEV Community",
+      "snippet": "What areGitHubActionsandGitLabCI?GitHubActionsisGitHub's nativeCI/CD solution, introduced in 2019, which allows you to automate workflows directly from yourGitHubrepositories.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "github actions vs gitlab ci advantages disadvantages",
+      "url": "https://eitt.academy/knowledge-base/jenkins-vs-github-actions-vs-gitlab-ci-cicd-2026/",
+      "title": "JenkinsvsGitHubActionsvsGitLabCI— 2026 verdict | EITT",
+      "snippet": "Home. Knowledge Base. JenkinsvsGitHubActionsvsGitLabCI– A Guide toCI/CD in 2026.What you will learn from this article: JenkinsvsGitHubActionsvsGitLabCI– an in-depth comparison of architecture, capabilities, and limitations in 2026.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "github actions vs gitlab ci advantages disadvantages",
+      "url": "https://saucelabs.com/resources/blog/circleci-vs-github-actions-vs-gitlab-key-differences",
+      "title": "CircleCIvs.GitHubActionsvs.GitLabCI/CD | Sauce Labs",
+      "snippet": "CircleCI,GitHubActions, orGitLab: WhichCIPlatform Is Best? Selecting the bestCI/CD solution can feel like a daunting task because there are lots of things to consider.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci lat ncia enfileiramento startup jobs carga alta benchmark latency throughput",
+      "url": "https://docs.gitlab.com/runner/install/",
+      "title": "InstallGitLabRunner |GitLabDocs",
+      "snippet": "UseGitLabGitLabDuo Extend Install Administer Subscribe Contribute Solutions. Requirements. Installation methods.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci throughput jobs paralelos matrix builds benchmark latency throughput",
+      "url": "https://github.com/mautrix/telegram",
+      "title": "GitHub - mautrix/telegram: AMatrix-Telegram puppeting bridge · GitHub",
+      "snippet": "Languages License ReleaseGitLabCI. AMatrix-Telegram puppeting/relaybot bridge.ROADMAP.md contains a general overview of what is supported by the bridge. Discussion.Matrixroom: #telegram:maunium.net.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci throughput jobs paralelos matrix builds benchmark latency throughput",
+      "url": "https://yrkan.com/es/blog/matrix-testing-in-ci-cd-pipelines/",
+      "title": "MatrixTesting en PipelinesCI/CD · Yuri Kan - Senior QA Lead...",
+      "snippet": "GitLabCIusa trabajosparalelosparamatrixtesting: # .gitlab-ci.yml .test_template: stage: test scriptUna definición dematrix, diezjobsparalelos, y sabes que tu código funciona en Ubuntu, macOS, Windows y tres versiones de Node.js antes de hac",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci overhead cache depend ncias artefatos entre runs",
+      "url": "https://docs.gitlab.com/ci/docker/using_kaniko/",
+      "title": "Use kaniko to build Docker images (removed) |GitLabDocs",
+      "snippet": "Offering:GitLab.com,GitLabSelf-Managed,GitLabDedicated. kaniko is no longer a maintained project. For more information, see issue 3348. Use Docker to build Docker images, Buildah, Podman torunDocker commands, or Podman withGitLabRunneron Ku",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci overhead cache depend ncias artefatos entre runs",
+      "url": "https://docs.devboxops.com/documentations/docker/sborka-obrazov/",
+      "title": "Сборка Docker-образов: гайд по Dockerfile иGitLabCIдля...",
+      "snippet": "Полное руководство по сборке Docker-образов: создание Dockerfile, настройкаGitLabCI/CD, best practices и практические примеры. Автоматизация DevOps процессов.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci overhead cache depend ncias artefatos entre runs",
+      "url": "https://manhpt.com/2019/06/21/gitlab-cai-dat-gitlab-runner-su-dung-moi-truong-docker/",
+      "title": "[Gitlab] Cài đặtgitlab-runnersử dụng... | ManhPT's Engineering Blog",
+      "snippet": "Cài đặt và cấu hìnhgitlab-runnertrên môi trường docker. Cài đặtgitlab-runnerthành công nhưng job không được kích hoạt.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci overhead cache depend ncias artefatos entre runs",
+      "url": "https://kgaut.net/blog/2022/deployer-ses-presentations-sur-gitlab-pages-avec-revealjs-docker-et-gitlab-ci",
+      "title": "Déployer ses présentations surgitlab... | Kgaut.NET - Kevin Gautreau",
+      "snippet": "le fichier .gitlab-ci.yml qui va construire l'image en utilisant le Dockerfile et la pousser dans le registry du projet : image: docker:latest services: - docker:dind.Une fois tout ça poussé dans votre dépôt, vous pouvez vérifier que lacis'",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci impacto runners self hosted managed tempo total pipeline integration architecture example",
+      "url": "https://docs.github.com/en/actions/concepts/runners/self-hosted-runners",
+      "title": "Self-hostedrunners- GitHub Docs",
+      "snippet": "You can useself-hostedrunnersanywhere in themanagementhierarchy. Repository-levelrunnersare dedicated to a single repository, while organization-levelrunnerscan process jobs for multiple repositories in an organization.",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    },
+    {
+      "query": "gitlab ci impacto runners self hosted managed tempo total pipeline integration architecture example",
+      "url": "https://www.geeksforgeeks.org/git/how-to-configure-gitlab-runners/",
+      "title": "How To ConfigureGitLabRunners? - GeeksforGeeks",
+      "snippet": "Once theGitLabRunneris installed, it needs to be registered with yourGitLabinstance or project. Get Your Registration Token: Go to yourGitLabproject’s Settings >CI/CD >Runnerssection. Here, you’ll find a registration token that you’ll use t",
+      "selected_for_scrape": false,
+      "status": "snippet_fallback",
+      "reason": "max_scrapes_limit"
+    }
+  ]
+}
