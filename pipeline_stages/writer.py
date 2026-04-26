@@ -30,6 +30,7 @@ def run_writer_iteration(
                 questoes=questoes,
                 correction_instructions=correction_instructions,
                 research_quality=research_quality,
+                evidence_pack=evidence_pack,
             )
         except TimeoutException:
             pipeline.log.error(

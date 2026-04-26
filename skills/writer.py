@@ -30,8 +30,20 @@ class WriterSkill(SkillBase):
         questoes=None,
         correction_instructions="",
         research_quality="ok",
+        evidence_pack=None,
     ):
         questoes = questoes or []
+
+        if evidence_pack and evidence_pack.retained_urls:
+            urls_lines = "\n".join(
+                f"- {url}" for url in evidence_pack.retained_urls[:20]
+            )
+            evidence_summary = (
+                f"FONTES VERIFICADAS ({len(evidence_pack.retained_urls)} URLs"
+                f" — use APENAS estas em Referências):\n{urls_lines}"
+            )
+        else:
+            evidence_summary = ""
         logger.debug(f"Starting writer: ferramentas={ferramentas}, foco={foco}, quality={research_quality}")
 
         lessons = self.memory.get_lessons_for_prompt()
@@ -100,6 +112,7 @@ ATENÇÃO: O artigo anterior foi REJEITADO por conter os problemas acima.
             lessons_block=lessons_block,
             writing_examples_block=writing_examples_block,
             research_warning=research_warning,
+            evidence_summary=evidence_summary,
             compact_research=compact_research,
             compact_analysis=compact_analysis,
             objective_requirements_block=objective_requirements_block,

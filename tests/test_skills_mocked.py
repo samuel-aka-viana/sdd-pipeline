@@ -358,6 +358,43 @@ Summary.
         full_prompt = call_kwargs.get("stable_prefix", "") + call_kwargs.get("volatile_suffix", "")
         assert "AVISO" in full_prompt
 
+    @pytest.mark.deterministic
+    @patch('skills.base.LLMClient')
+    def test_writer_run_with_evidence_pack(self, mock_llm_class):
+        from skills.schemas import EvidencePack
+
+        mock_instance = MagicMock()
+        mock_instance.model_for_role.return_value = "test-model"
+        mock_instance.generate_cached.return_value = Mock(
+            response="# Docker\n## Instalação\n```bash\ncurl https://docs.docker.com/install.sh | sh\n```"
+        )
+        mock_llm_class.return_value = mock_instance
+
+        mock_memory = MagicMock()
+        mock_memory.get_lessons_for_prompt.return_value = ""
+        mock_memory.log_event = MagicMock()
+
+        pack = EvidencePack(
+            ferramentas="docker",
+            foco="instalação",
+            retained_urls=["https://docs.docker.com/install/", "https://github.com/docker/docker"],
+        )
+
+        writer = WriterSkill(mock_memory)
+        writer.run(
+            research="some research",
+            analysis="some analysis",
+            ferramentas="docker",
+            contexto="production",
+            foco="instalação",
+            evidence_pack=pack,
+        )
+
+        assert mock_instance.generate_cached.called
+        call_args = mock_instance.generate_cached.call_args
+        prompt_text = str(call_args)
+        assert "docs.docker.com" in prompt_text
+
 
 class TestCriticSkillMocked:
     """Testes de Critic com LLM mockado."""

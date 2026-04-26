@@ -9,6 +9,7 @@ main: |
   {questoes_block}
   {lessons_block}
   {research_warning}
+  {evidence_summary}
 
   DADOS DE PESQUISA:
   {compact_research}
@@ -24,7 +25,7 @@ main: |
      b) Explique por que o dado não existe
      c) Dê uma estimativa baseada em evidência
   4. Use APENAS comandos que aparecem nos dados acima
-  5. URLs em referências devem ser APENAS das URLs consultadas na pesquisa
+  5. URLs em referências devem ser APENAS das FONTES VERIFICADAS listadas acima
   6. Toda tabela deve ter TODAS as células preenchidas
   7. Toda solução em Armadilhas deve ter comando real com no mínimo 20 caracteres
   8. Em "## Dicas de Otimização", use SOMENTE lista markdown com prefixo "- "
