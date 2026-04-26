@@ -41,7 +41,6 @@ def run_research_stage(
 
     research = "\n\n".join(research_parts)
     pipeline.memory.set("research", research)
-    pipeline.save_debug("research", research)
     return research
 
 

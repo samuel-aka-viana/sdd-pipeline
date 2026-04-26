@@ -146,3 +146,41 @@ def test_evidence_stage_saves_json(tmp_path, monkeypatch):
         "items": len(pack.items),
         "gaps": len(pack.gaps),
     })
+
+
+def test_research_stage_does_not_save_debug_research(tmp_path, monkeypatch):
+    """save_debug("research", ...) must NOT be called from research stage."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "output").mkdir()
+
+    from pipeline_stages.research import run_research_stage
+
+    mock_pipeline = MagicMock()
+    mock_pipeline.parse_tools.return_value = ["docker"]
+    mock_pipeline.enforce_global_timeout = MagicMock()
+    mock_pipeline.researcher = MagicMock()
+    mock_pipeline.researcher.run.return_value = "# docker\nsome content https://docs.docker.com"
+    mock_pipeline.memory = MagicMock()
+    mock_pipeline.save_debug = MagicMock()
+    mock_pipeline.save_research_history = MagicMock()
+    mock_pipeline.assess_research_quality = MagicMock(return_value="ok")
+
+    run_research_stage(
+        mock_pipeline,
+        ferramentas="docker",
+        foco="instalação",
+        questoes=[],
+        started_at=0.0,
+    )
+
+    for call in mock_pipeline.save_debug.call_args_list:
+        assert call.args[0] != "research", "debug_research.md must not be saved by default"
+
+
+def test_html_debug_disabled_by_default(monkeypatch):
+    """HTML_DEBUG_ENABLED must be False when SDD_HTML_DEBUG env is not set."""
+    monkeypatch.delenv("SDD_HTML_DEBUG", raising=False)
+    import importlib
+    import researcher_modules.constants as constants
+    importlib.reload(constants)
+    assert constants.HTML_DEBUG_ENABLED is False

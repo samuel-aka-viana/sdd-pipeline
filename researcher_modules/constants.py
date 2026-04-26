@@ -6,6 +6,7 @@ Importado via `from researcher_modules.constants import *` em researcher.py.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 FOCUS_QUERIES: dict[str, list[str]] = {
@@ -318,4 +319,4 @@ MAX_SCRAPES_PER_TOOL = 10
 MAX_CHARS_PER_SCRAPE = 4000
 DOMAIN_SCRAPE_STATS_PATH = Path(".memory/scrape_domain_stats.json")
 MAX_PARALLEL_PER_DOMAIN = 1
-HTML_DEBUG_ENABLED = True
+HTML_DEBUG_ENABLED = os.getenv("SDD_HTML_DEBUG", "0") == "1"
