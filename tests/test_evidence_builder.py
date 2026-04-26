@@ -184,3 +184,22 @@ def test_html_debug_disabled_by_default(monkeypatch):
     import researcher_modules.constants as constants
     importlib.reload(constants)
     assert constants.HTML_DEBUG_ENABLED is False
+
+
+def test_langgraph_has_evidence_node():
+    """LangGraph graph must have 'evidence' node, not 'relevance_filter'."""
+    from orchestration.langgraph_runner import LangGraphOrchestrator
+    mock_pipeline = MagicMock()
+    mock_pipeline.spec = {"pipeline": {}}
+    orch = LangGraphOrchestrator(mock_pipeline)
+    nodes = set(orch.graph.get_graph().nodes.keys())
+    assert "evidence" in nodes
+    assert "relevance_filter" not in nodes
+
+
+def test_pipeline_state_has_evidence_pack_field():
+    """PipelineState TypedDict must declare evidence_pack field."""
+    from orchestration.langgraph_runner import PipelineState
+    import typing
+    hints = typing.get_type_hints(PipelineState)
+    assert "evidence_pack" in hints

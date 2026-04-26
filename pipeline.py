@@ -355,11 +355,13 @@ class SDDPipeline:
         foco: str,
         questoes: list[str],
         started_at: float,
+        evidence_pack=None,
     ) -> str:
         from pipeline_stages.analysis import run_analysis_stage
         return run_analysis_stage(
             self,
             research=research,
+            evidence_pack=evidence_pack,
             ferramentas=ferramentas,
             contexto=contexto,
             foco=foco,
@@ -418,6 +420,7 @@ class SDDPipeline:
         questoes: list[str],
         correction_instructions: str,
         research_quality: str,
+        evidence_pack=None,
     ) -> str:
         from pipeline_stages.writer import run_writer_iteration
         return run_writer_iteration(
@@ -431,6 +434,7 @@ class SDDPipeline:
             questoes=questoes,
             correction_instructions=correction_instructions,
             research_quality=research_quality,
+            evidence_pack=evidence_pack,
         )
 
     def run_critic_iteration(
@@ -439,6 +443,7 @@ class SDDPipeline:
         ferramentas: str,
         started_at: float,
         iteration: int,
+        evidence_pack=None,
     ) -> dict:
         from pipeline_stages.critic import run_critic_iteration
         return run_critic_iteration(
@@ -447,6 +452,7 @@ class SDDPipeline:
             ferramentas=ferramentas,
             started_at=started_at,
             iteration=iteration,
+            evidence_pack=evidence_pack,
         )
 
     def handle_approved_article(

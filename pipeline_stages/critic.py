@@ -12,6 +12,7 @@ def run_critic_iteration(
     ferramentas: str,
     started_at: float,
     iteration: int,
+    evidence_pack=None,
 ) -> dict:
     pipeline.enforce_global_timeout(started_at, stage=f"iteração {iteration} (critic)")
     route = pipeline.memory.get("route", {})

@@ -17,6 +17,7 @@ def run_writer_iteration(
     questoes: list[str],
     correction_instructions: str,
     research_quality: str,
+    evidence_pack=None,
 ) -> str:
     with pipeline.log.task("Escrevendo artigo"):
         try:

@@ -30,6 +30,7 @@ class PipelineState(TypedDict, total=False):
     stagnant_iterations: int
     write_status: str
     status: str
+    evidence_pack: Any  # EvidencePack | None
 
 
 class LangGraphOrchestrator:
@@ -49,7 +50,7 @@ class LangGraphOrchestrator:
         graph = StateGraph(PipelineState)
         graph.add_node("bootstrap", self._bootstrap)
         graph.add_node("research", self._research)
-        graph.add_node("relevance_filter", self._relevance_filter)
+        graph.add_node("evidence", self._evidence)
         graph.add_node("analysis", self._analysis)
         graph.add_node("start_write", self._start_write)
         graph.add_node("writer", self._writer)
@@ -60,8 +61,8 @@ class LangGraphOrchestrator:
 
         graph.set_entry_point("bootstrap")
         graph.add_edge("bootstrap", "research")
-        graph.add_edge("research", "relevance_filter")
-        graph.add_edge("relevance_filter", "analysis")
+        graph.add_edge("research", "evidence")
+        graph.add_edge("evidence", "analysis")
         graph.add_edge("analysis", "start_write")
         graph.add_edge("start_write", "writer")
         graph.add_edge("writer", "question_coverage")
@@ -166,16 +167,19 @@ class LangGraphOrchestrator:
             "status": "ok",
         }
 
-    def _relevance_filter(self, state: PipelineState) -> PipelineState:
-        filtered = self.pipeline.run_relevance_filter_stage(
+    def _evidence(self, state: PipelineState) -> PipelineState:
+        pack = self.pipeline.run_evidence_stage(
             research=state["research"],
+            ferramentas=state["ferramentas"],
+            foco=state["foco"],
             started_at=state["started_at"],
         )
-        return {"research": filtered, "status": "ok"}
+        return {"evidence_pack": pack, "status": "ok"}
 
     def _analysis(self, state: PipelineState) -> PipelineState:
         analysis = self.pipeline.run_analysis_stage(
             research=state["research"],
+            evidence_pack=state.get("evidence_pack"),
             ferramentas=state["ferramentas"],
             contexto=state["contexto"],
             foco=state["foco"],
@@ -211,6 +215,7 @@ class LangGraphOrchestrator:
         writer_inputs = {
             "iteration": iteration,
             "research": state["research"],
+            "evidence_pack": state.get("evidence_pack"),
             "analysis": state["analysis"],
             "ferramentas": state["ferramentas"],
             "contexto": state["contexto"],
@@ -304,6 +309,7 @@ class LangGraphOrchestrator:
             ferramentas=state["ferramentas"],
             started_at=state["started_at"],
             iteration=state.get("iteration", 0),
+            evidence_pack=state.get("evidence_pack"),
         )
         self.pipeline.log.event_log.log_event("critic_end", {
             "iteration": state.get("iteration", 0),

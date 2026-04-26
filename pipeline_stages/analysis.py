@@ -27,6 +27,7 @@ def run_analysis_stage(
     foco: str,
     questoes: list[str],
     started_at: float,
+    evidence_pack=None,
 ) -> str:
     pipeline.log.section(2, 3, "Analisando")
     pipeline.enforce_global_timeout(started_at, stage="análise")
@@ -36,16 +37,16 @@ def run_analysis_stage(
     can_parallelize = route.get("can_parallelize_analysis", False)
 
     if not can_parallelize or len(aspects) <= 1:
-        analysis = _run_sequential_analysis(pipeline, research, ferramentas, contexto, foco, questoes)
+        analysis = _run_sequential_analysis(pipeline, research, ferramentas, contexto, foco, questoes, evidence_pack)
     else:
-        analysis = _run_parallel_analysis(pipeline, research, ferramentas, contexto, aspects, questoes)
+        analysis = _run_parallel_analysis(pipeline, research, ferramentas, contexto, aspects, questoes, evidence_pack)
 
     pipeline.memory.set("analysis", analysis)
     pipeline.save_debug("analysis", analysis)
     return analysis
 
 
-def _run_sequential_analysis(pipeline, research, ferramentas, contexto, foco, questoes):
+def _run_sequential_analysis(pipeline, research, ferramentas, contexto, foco, questoes, evidence_pack=None):
     with pipeline.log.task("Gerando análise"):
         try:
             return pipeline.analyst.run(
@@ -59,7 +60,7 @@ def _run_sequential_analysis(pipeline, research, ferramentas, contexto, foco, qu
             return _timeout_fallback(pipeline, research)
 
 
-def _run_parallel_analysis(pipeline, research, ferramentas, contexto, aspects, questoes):
+def _run_parallel_analysis(pipeline, research, ferramentas, contexto, aspects, questoes, evidence_pack=None):
     with pipeline.log.task(f"Gerando análise paralela ({len(aspects)} aspectos)"):
         results: dict[str, str] = {}
         try:
