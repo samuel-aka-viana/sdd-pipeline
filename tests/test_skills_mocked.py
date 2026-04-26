@@ -527,3 +527,81 @@ Conclusion.
         # Should be approved or failed by semantic check (depends on LLM output)
         assert "layer" in result
         assert result["layer"] in ["semantic", "deterministic"]
+
+    @pytest.mark.deterministic
+    @patch('skills.base.LLMClient')
+    def test_critic_rejects_url_outside_evidence_pack(self, mock_llm_class):
+        from skills.schemas import EvidencePack
+
+        mock_instance = MagicMock()
+        mock_instance.model_for_role.return_value = "test-model"
+        mock_instance.resolve_fast_model.return_value = "test-model"
+        mock_llm_class.return_value = mock_instance
+
+        mock_memory = MagicMock()
+        critic = CriticSkill(mock_memory)
+        pack = EvidencePack(
+            ferramentas="docker",
+            foco="instalação",
+            retained_urls=["https://docs.docker.com/install/"],
+        )
+
+        article_with_outside_url = """
+# TLDR
+Docker intro.
+
+# O que é
+See https://docs.docker.com/install/ and https://rogue-site.com/docker for details.
+
+# Referências
+- https://docs.docker.com/install/
+- https://rogue-site.com/docker
+"""
+        result = critic.evaluate(
+            article_with_outside_url, "docker", evidence_pack=pack
+        )
+        problems = result.get("problems", [])
+        assert any("rogue-site.com" in p for p in problems), (
+            f"Expected groundedness problem mentioning rogue-site.com, got: {problems}"
+        )
+
+    @pytest.mark.deterministic
+    @patch('skills.base.LLMClient')
+    def test_critic_passes_when_all_urls_in_evidence_pack(self, mock_llm_class):
+        from skills.schemas import EvidencePack
+
+        mock_instance = MagicMock()
+        mock_instance.model_for_role.return_value = "test-model"
+        mock_instance.resolve_fast_model.return_value = "test-model"
+        mock_llm_class.return_value = mock_instance
+
+        mock_memory = MagicMock()
+        critic = CriticSkill(mock_memory)
+        pack = EvidencePack(
+            ferramentas="docker",
+            foco="instalação",
+            retained_urls=[
+                "https://docs.docker.com/install/",
+                "https://github.com/docker/docker",
+            ],
+        )
+
+        article_clean = """
+# TLDR
+Docker intro.
+
+# O que é
+See https://docs.docker.com/install/ for details.
+
+# Referências
+- https://docs.docker.com/install/
+- https://github.com/docker/docker
+"""
+        result = critic.evaluate(article_clean, "docker", evidence_pack=pack)
+        groundedness_problems = [
+            p for p in result.get("problems", [])
+            if "fora do evidence pack" in p
+        ]
+        assert groundedness_problems == [], (
+            f"Expected no groundedness problems, got: {groundedness_problems}"
+        )

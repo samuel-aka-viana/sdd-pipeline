@@ -1,11 +1,32 @@
 import logging
+import re as _re
 from llm.structured import StructuredOutputError
 from skills.base import SkillBase
 from skills.schemas import FilteredIssuesResult, SemanticCheckResult
-from skills.utils import TEMPORAL_MARKERS, TOOL_TYPE_ALLOWLIST, extract_evidence_based_issues
+from skills.utils import TEMPORAL_MARKERS, TOOL_TYPE_ALLOWLIST
 from validators.spec_validator import SpecValidator
 
 logger = logging.getLogger(__name__)
+
+_ARTICLE_URL_RE = _re.compile(r"https?://[^\s)>\]\"'`<]+", _re.IGNORECASE)
+
+
+def _check_url_groundedness(artigo: str, evidence_pack) -> list[str]:
+    """Return problems for URLs in article that are not in the evidence pack."""
+    if evidence_pack is None or not evidence_pack.retained_urls:
+        return []
+    allowed = set(evidence_pack.retained_urls)
+    for item in evidence_pack.items:
+        allowed.add(item.source_url)
+    article_urls = [
+        u.rstrip(".,;:!?")
+        for u in _ARTICLE_URL_RE.findall(artigo)
+    ]
+    outside = [u for u in article_urls if u not in allowed]
+    if not outside:
+        return []
+    sample = ", ".join(outside[:3])
+    return [f"URLs fora do evidence pack ({len(outside)} encontradas): {sample}"]
 
 
 class CriticSkill(SkillBase):
@@ -21,9 +42,10 @@ class CriticSkill(SkillBase):
         if self.fast_model != self.model:
             logger.info("[critic] usando fast_model=%s para sub-tasks de classificação", self.fast_model)
 
-    def evaluate(self, artigo: str, ferramentas: str, tool_type: str = "unknown") -> dict:
+    def evaluate(self, artigo: str, ferramentas: str, tool_type: str = "unknown", evidence_pack=None) -> dict:
         logger.debug(f"Starting deterministic validation for: {ferramentas} (tool_type={tool_type})")
         result = self.validator.validate(artigo)
+        groundedness_problems = _check_url_groundedness(artigo, evidence_pack)
         logger.debug(
             f"Deterministic validation: passed={result.passed}, "
             f"problems={len(result.problems)}, warnings={len(result.warnings)}"
@@ -38,8 +60,9 @@ class CriticSkill(SkillBase):
             "spec_references": result.spec_references,
         })
 
-        if not result.passed:
-            logger.info(f"Article REJECTED by deterministic layer: {len(result.problems)} problems found")
+        if not result.passed or groundedness_problems:
+            all_problems = list(result.problems) + groundedness_problems
+            logger.info(f"Article REJECTED by deterministic layer: {len(all_problems)} problems found")
             feedback_parts = []
             problem_entries = zip(result.problems, result.spec_references + [""] * len(result.problems))
             for problem, spec_ref in problem_entries:
@@ -50,6 +73,8 @@ class CriticSkill(SkillBase):
                     f"  ✓ Correção: {correction}" if correction else "",
                 ]
                 feedback_parts.extend(line for line in optional_lines if line)
+            for gp in groundedness_problems:
+                feedback_parts.append(f"- {gp}")
 
             detailed_feedback = "\n".join(feedback_parts)
             correction_prompt_base = self.validator.problems_as_prompt(result)
@@ -62,7 +87,7 @@ class CriticSkill(SkillBase):
             return {
                 "approved": False,
                 "layer": "deterministic",
-                "problems": result.problems,
+                "problems": all_problems,
                 "correction_prompt": correction_prompt_enhanced,
                 "report": result.report(),
             }

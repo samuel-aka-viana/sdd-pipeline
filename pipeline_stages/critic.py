@@ -20,7 +20,9 @@ def run_critic_iteration(
 
     with pipeline.log.task("Validando contra spec"):
         try:
-            return pipeline.critic.evaluate(article, ferramentas, tool_type=tool_type)
+            return pipeline.critic.evaluate(
+                article, ferramentas, tool_type=tool_type, evidence_pack=evidence_pack
+            )
         except TimeoutException:
             pipeline.log.error(
                 f"Critic timeout ({pipeline.critic.timeout}s) — aprovando sem validação semântica"
