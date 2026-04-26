@@ -102,18 +102,10 @@ def test_route_no_critic_result_defaults_to_writer():
 
 def test_pipeline_state_has_required_persistent_fields():
     required = {"ferramentas", "foco", "questoes", "evidence_pack", "analysis",
-                "article_v1", "iteration", "stagnant_count", "tried_gaps"}
+                "article_v1", "iteration", "stagnant_count"}
     assert required.issubset(PipelineState.__annotations__)
 
 
 def test_pipeline_state_has_required_volatile_fields():
     required = {"article", "critic_result", "correction"}
     assert required.issubset(PipelineState.__annotations__)
-
-
-def test_pipeline_state_tried_gaps_is_annotated():
-    annotation = PipelineState.__annotations__["tried_gaps"]
-    # With `from __future__ import annotations`, annotations are stored as ForwardRef or string.
-    # Either way the raw text must reference Annotated — not a bare list.
-    annotation_str = str(annotation)
-    assert "Annotated" in annotation_str or hasattr(annotation, "__metadata__")

@@ -46,4 +46,5 @@ class CriticAgent:
 
     def load_quality_config(self) -> dict:
         """Load quality check configuration from sdd/config/quality.yaml."""
-        return yaml.safe_load(Path("sdd/config/quality.yaml").read_text())
+        config_path = Path(__file__).parent.parent / "config/quality.yaml"
+        return yaml.safe_load(config_path.read_text())

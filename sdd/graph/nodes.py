@@ -13,9 +13,12 @@ from sdd.agents import ResearcherAgent, EvidenceAgent, AnalystAgent, WriterAgent
 from sdd.graph.state import PipelineState
 
 
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
 def _load_spec() -> dict:
     """Load article spec from spec/article_spec.yaml."""
-    return yaml.safe_load(Path("spec/article_spec.yaml").read_text())
+    return yaml.safe_load((_PROJECT_ROOT / "spec/article_spec.yaml").read_text())
 
 
 def _make_memory():
@@ -105,13 +108,17 @@ def node_writer(state: PipelineState) -> dict:
 
 def node_critic(state: PipelineState) -> dict:
     """Evaluate article quality; detect stagnation by comparing corrections."""
+    evidence_pack = state.get("evidence_pack")
+    if evidence_pack is None:
+        return {"critic_result": {"approved": False, "action": "FINALIZE_INCOMPLETE"}, "correction": None}
+
     spec = _load_spec()
     memory = _make_memory()
     agent = CriticAgent(memory=memory, spec=spec)
 
     result = agent.run(
         article=state.get("article", ""),
-        evidence_pack=state["evidence_pack"],
+        evidence_pack=evidence_pack,
         ferramentas=state["ferramentas"],
         foco=state["foco"],
         questoes=state["questoes"],
