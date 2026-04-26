@@ -10,7 +10,8 @@ from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
 from rich.table import Table
 
-from pipeline import SDDPipeline
+from sdd.graph.runner import run_pipeline as graph_run_pipeline
+from memory.memory_store import MemoryStore
 from cli.prompts import FOCOS_DISPONIVEIS, prompt_list, prompt_menu_choice
 
 load_dotenv()
@@ -65,7 +66,7 @@ def coletar_validacoes() -> list[str]:
     )
 
 
-def perguntar_pesquisa_existente(pipeline) -> str | None:
+def perguntar_pesquisa_existente() -> str | None:
     """Ask if user wants to reuse an existing research file.
 
     Returns:
@@ -73,15 +74,17 @@ def perguntar_pesquisa_existente(pipeline) -> str | None:
     """
     console.print("\n[dim]Pesquisas históricas:[/dim]")
 
-    # List existing research files
-    research_files = pipeline.list_research_files()
+    # List existing research files from output directory
+    output_dir = Path("output")
+    research_files = sorted(output_dir.glob("debug_research_*.md"))
 
     if research_files:
         console.print("[dim]Arquivos de pesquisa disponíveis:[/dim]")
         console.print("  [cyan]0.[/cyan] Executar nova pesquisa (padrão)")
-        for menu_index, (filename, tool, size) in enumerate(research_files, MENU_INDEX_START):
+        for menu_index, research_file in enumerate(research_files, MENU_INDEX_START):
+            size = research_file.stat().st_size
             size_kb = size / 1024
-            console.print(f"  [cyan]{menu_index}.[/cyan] {filename} ({tool}, {size_kb:.1f}KB)")
+            console.print(f"  [cyan]{menu_index}.[/cyan] {research_file.name} ({size_kb:.1f}KB)")
 
         escolha = Prompt.ask(
             "\n[bold]Usar pesquisa existente?[/bold] [dim](número, ou enter para nova)[/dim]",
@@ -94,11 +97,10 @@ def perguntar_pesquisa_existente(pipeline) -> str | None:
         try:
             file_index = int(escolha.strip())
             if 1 <= file_index <= len(research_files):
-                _, tool, _ = research_files[file_index - MENU_INDEX_START]
-                research_content = pipeline.load_research_history(tool)
-                if research_content:
-                    console.print(f"\n[green]✓[/green] Pesquisa de {tool} carregada ({len(research_content)} chars)")
-                    return research_content
+                research_file = research_files[file_index - MENU_INDEX_START]
+                research_content = research_file.read_text(encoding="utf-8")
+                console.print(f"\n[green]✓[/green] Pesquisa carregada de {research_file.name} ({len(research_content)} chars)")
+                return research_content
         except (ValueError, IndexError):
             pass  # Fall through to run new research
 
@@ -237,40 +239,43 @@ def main():
     if cli_flags["refresh_search"]:
         console.print("[yellow]Modo refresh-search ativo: ignorando cache de busca nesta execução.[/yellow]")
 
-    try:
-        pipeline = SDDPipeline(verbosity="minimal")
-    except BaseException as error:
-        if isinstance(error, KeyboardInterrupt):
-            console.print("\n[dim]Cancelado.[/dim]")
-            sys.exit(0)
-        console.print()
-        console.print(Panel.fit(
-            f"[bold red]Falha ao inicializar pipeline: {type(error).__name__}[/bold red]\n"
-            f"[white]{error}[/white]\n\n"
-            f"[dim]{traceback.format_exc()}[/dim]",
-            border_style="red",
-        ))
-        sys.exit(1)
-
     # Ask if user wants to reuse existing research
     existing_research = None
     try:
-        existing_research = perguntar_pesquisa_existente(pipeline)
+        existing_research = perguntar_pesquisa_existente()
     except KeyboardInterrupt:
         console.print("\n[dim]Cancelado.[/dim]")
         sys.exit(0)
 
     try:
-        output_path = pipeline.run(
-            ferramentas=ferramentas,
-            contexto=contexto,
-            foco=foco,
-            questoes=questoes,
-            refresh_search=cli_flags["refresh_search"],
-            urls=urls,
-            skip_search=skip_search,
-            existing_research=existing_research,
-        )
+        # Initialize memory store
+        memory = MemoryStore()
+        memory.set("ferramentas", ferramentas)
+        memory.set("contexto", contexto)
+        memory.set("foco", foco)
+        memory.set("questoes", questoes)
+
+        # Build pipeline inputs
+        pipeline_inputs = {
+            "ferramentas": ferramentas,
+            "contexto": contexto,
+            "foco": foco,
+            "questoes": questoes,
+            "urls": urls,
+            "skip_search": skip_search,
+            "existing_research": existing_research,
+            "refresh_search": cli_flags["refresh_search"],
+            "memory": memory,
+        }
+
+        # Run the pipeline
+        final_state = graph_run_pipeline(pipeline_inputs)
+        output_path = Path("output") / "article.md"
+        if "article" in final_state:
+            output_path.parent.mkdir(exist_ok=True)
+            output_path.write_text(final_state["article"], encoding="utf-8")
+
+        console.print(f"\n[green]✓[/green] Artigo finalizado: {output_path}")
     except BaseException as error:
         if isinstance(error, KeyboardInterrupt):
             console.print("\n[dim]Cancelado.[/dim]")
@@ -285,7 +290,7 @@ def main():
         ))
         sys.exit(1)
 
-    checklist_pos_execucao(validacoes, output_path)
+    checklist_pos_execucao(validacoes, str(output_path))
 
 
 if __name__ == "__main__":

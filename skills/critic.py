@@ -2,7 +2,7 @@ import logging
 import re as _re
 from llm.structured import StructuredOutputError
 from skills.base import SkillBase
-from skills.schemas import FilteredIssuesResult, SemanticCheckResult
+from sdd.schemas import FilteredIssuesResult, SemanticCheckResult
 from skills.utils import TEMPORAL_MARKERS, TOOL_TYPE_ALLOWLIST
 from validators.spec_validator import SpecValidator
 

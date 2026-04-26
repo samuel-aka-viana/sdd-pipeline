@@ -172,10 +172,11 @@ class TestSpecSchema:
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(invalid_spec, schema)
 
+    @pytest.mark.skip(reason="legacy pipeline removed")
     def test_pipeline_validates_spec(self):
         """Pipeline initialization validates spec against schema."""
         from pipeline import SDDPipeline
-        
+
         try:
             pipeline = SDDPipeline()
             assert pipeline.spec is not None
@@ -183,13 +184,14 @@ class TestSpecSchema:
         except ValueError as e:
             pytest.fail(f"Pipeline should load valid spec: {e}")
 
+    @pytest.mark.skip(reason="legacy pipeline removed")
     def test_pipeline_rejects_invalid_spec(self, tmp_path):
         """Pipeline raises error if spec is invalid."""
         # Create a temporary invalid spec file
         invalid_spec_path = tmp_path / "invalid_spec.yaml"
         invalid_spec_path.write_text("spec_version: 1.0.0\n")  # Missing required fields
-        
+
         from pipeline import SDDPipeline
-        
+
         with pytest.raises(ValueError, match="Spec validation failed"):
             SDDPipeline(spec_path=str(invalid_spec_path))

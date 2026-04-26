@@ -1,5 +1,4 @@
 import logging
-from memory.research_persistence import ResearchPersistence
 from skills.base import SkillBase
 from skills.templates import build_question_answer_template_block, build_objective_requirements_block
 from utils import compact_text_block
@@ -12,7 +11,7 @@ class WriterSkill(SkillBase):
 
     def __init__(self, memory, spec_path="spec/article_spec.yaml", chroma=None):
         super().__init__(memory, spec_path, chroma)
-        self.persistence = ResearchPersistence()
+        # TODO Phase 4: replace with LangChain native
         llm_conf = self.spec.get("llm", {})
         writer_input = llm_conf.get("writer_input", {})
         self.max_research_chars = writer_input.get("max_research_chars", 16000)

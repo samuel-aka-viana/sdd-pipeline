@@ -1,0 +1,45 @@
+no_placeholders:
+  patterns:
+    - "[Descreva"
+    - "[TODO"
+    - "[X]"
+    - "[inserir"
+    - "[preencher"
+    - "PREENCHER"
+    - "# Verifique"
+    - "# Ajuste"
+    - "# Configure"
+    - "# Corrija"
+    - "# Substitua"
+    - "conforme necessário"
+    - "configura corretamente"
+    - "de acordo com suas necessidades"
+    - "consulte a documentação oficial"
+    - "verifique a documentação"
+    - "dependendo do seu ambiente"
+    - "ajuste conforme seu caso"
+  message: "Seção contém placeholder ou frase genérica não preenchida"
+
+min_refs: 3
+min_errors: 2
+min_tips: 3
+
+required_sections:
+  - tldr
+  - o_que_e
+  - requisitos
+  - instalacao
+  - configuracao
+  - exemplo_pratico
+  - armadilhas
+  - otimizacoes
+  - conclusao
+  - referencias
+
+url_validation:
+  must_start_with: "https://"
+  block_patterns:
+    - "example.com"
+    - "seu-repositorio"
+    - "docs.example"
+    - "localhost"

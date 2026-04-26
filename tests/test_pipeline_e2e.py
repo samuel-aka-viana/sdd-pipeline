@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 from validators.spec_validator import ValidationResult
-from skills.critic import CriticSkill
+from sdd.agents import CriticSkill
 from memory.memory_store import MemoryStore
 import tempfile
 

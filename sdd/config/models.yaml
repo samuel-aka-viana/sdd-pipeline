@@ -1,0 +1,19 @@
+researcher:
+  model: "z-ai/glm-4.5-air:free"
+  provider: openrouter
+
+analyst:
+  model: "meta-llama/llama-3.3-70b-instruct:free"
+  provider: openrouter
+
+writer:
+  model: "openai/gpt-oss-120b:free"
+  provider: openrouter
+
+critic:
+  model: "gemma4:26b"
+  provider: ollama
+
+critic_fast:
+  model: "qwen2.5:7b-instruct-q5_K_M"
+  provider: ollama

@@ -1,0 +1,76 @@
+scraper:
+  max_chars_per_page: 16000
+  max_scrapes_per_tool: 12
+  timeout_seconds: 10
+  compliant_mode: true
+  max_retries: 1
+  skip_domains:
+    - "youtube.com"
+    - "youtu.be"
+    - "twitter.com"
+    - "x.com"
+    - "t.co"
+    - "facebook.com"
+    - "fb.com"
+    - "instagram.com"
+    - "threads.net"
+    - "tiktok.com"
+    - "pinterest.com"
+    - "linkedin.com"
+    - "reddit.com"
+    - "news.ycombinator.com"
+    - "databasemart.com"
+    - "aitooldiscovery.com"
+    - "toolify.ai"
+    - "g2.com"
+    - "saashub.com"
+    - "slashdot.org"
+    - "scribd.com"
+    - "udemy.com"
+    - "readmedium.com"
+    - "github-wiki-see.page"
+    - "explore.market.dev"
+    - "explaintopic.com"
+    - "news.lavx.hu"
+    - "news.smol.ai"
+    - "cccok.cn"
+    - "toolhalla.ai"
+    - "arsturn.com"
+    - "vmme.org"
+    - "techbyjz.blog"
+    - "markaicode.com"
+    - "fastlaunchapi.dev"
+    - "codezup.com"
+    - "johal.in"
+    - "programming4.us"
+    - "petapixel.com"
+    - "storagereview.com"
+    - "studylib.net"
+    - "macsales.com"
+    - "owc.com"
+    - "macrumors.com"
+    - "newertech.com"
+    - "manualslib.es"
+    - "alternate.es"
+    - "plazavea.com.pe"
+    - "musisol.com"
+    - "soydemac.com"
+
+search:
+  results_per_query: 8
+  cache_enabled: true
+  cache_ttl_seconds: 86400
+  cache_path: ".memory/search_cache.json"
+  max_urls: 30
+  rerank: true
+  min_score_keep: 3
+  max_results_per_query: 5
+
+ollama:
+  base_url: "http://localhost:11434"
+
+openrouter:
+  base_url: "https://openrouter.ai/api/v1"
+  api_key_env: "OPENROUTER_API_KEY"
+  app_name: "SDD Tech Writer"
+  site_url: ""

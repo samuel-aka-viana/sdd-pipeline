@@ -8,10 +8,7 @@ Estes testes mocam as chamadas LLM para tornar os testes:
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from skills.researcher import ResearcherSkill
-from skills.analyst import AnalystSkill
-from skills.writer import WriterSkill
-from skills.critic import CriticSkill
+from sdd.agents import ResearcherSkill, AnalystSkill, WriterSkill, CriticSkill
 
 
 class TestResearcherSkillMocked:
@@ -192,7 +189,7 @@ class TestAnalystSkillMocked:
     @pytest.mark.deterministic
     @patch('skills.base.LLMClient')
     def test_analyst_run_with_evidence_pack(self, mock_llm_class):
-        from skills.schemas import EvidenceItem, EvidencePack
+        from sdd.schemas import EvidenceItem, EvidencePack
 
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
@@ -361,7 +358,7 @@ Summary.
     @pytest.mark.deterministic
     @patch('skills.base.LLMClient')
     def test_writer_run_with_evidence_pack(self, mock_llm_class):
-        from skills.schemas import EvidencePack
+        from sdd.schemas import EvidencePack
 
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
@@ -531,7 +528,7 @@ Conclusion.
     @pytest.mark.deterministic
     @patch('skills.base.LLMClient')
     def test_critic_rejects_url_outside_evidence_pack(self, mock_llm_class):
-        from skills.schemas import EvidencePack
+        from sdd.schemas import EvidencePack
 
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
@@ -568,7 +565,7 @@ See https://docs.docker.com/install/ and https://rogue-site.com/docker for detai
     @pytest.mark.deterministic
     @patch('skills.base.LLMClient')
     def test_critic_passes_when_all_urls_in_evidence_pack(self, mock_llm_class):
-        from skills.schemas import EvidencePack
+        from sdd.schemas import EvidencePack
 
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"

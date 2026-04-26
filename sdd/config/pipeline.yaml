@@ -1,0 +1,5 @@
+max_iterations: 2
+max_enrichments: 1
+max_stagnant: 2
+timeout_total_seconds: 1800
+backend: langgraph

@@ -13,7 +13,8 @@ from uuid import uuid4
 
 from langsmith import Client
 
-from pipeline import SDDPipeline
+from sdd.graph.runner import run_pipeline as graph_run_pipeline
+from memory.memory_store import MemoryStore
 
 
 @dataclass
@@ -283,18 +284,31 @@ def run_single_case(eval_run_id: str, case: EvalCase, verbosity: str) -> dict[st
     wall_clock_start = monotonic()
 
     event_log_path = f"output/evals/events_{eval_run_id}_{case.id}.jsonl"
-    pipeline = SDDPipeline(verbose=False, verbosity=verbosity, event_log_path=event_log_path)
     run_out: dict[str, Any] = {}
     run_error: dict[str, Exception] = {}
 
     def _run_pipeline():
         try:
-            run_out["output_path"] = pipeline.run(
-                ferramentas=case.ferramentas,
-                contexto=case.contexto,
-                foco=case.foco,
-                questoes=case.questoes,
-            )
+            memory = MemoryStore()
+            memory.set("ferramentas", case.ferramentas)
+            memory.set("contexto", case.contexto)
+            memory.set("foco", case.foco)
+            memory.set("questoes", case.questoes)
+
+            pipeline_inputs = {
+                "ferramentas": case.ferramentas,
+                "contexto": case.contexto,
+                "foco": case.foco,
+                "questoes": case.questoes,
+                "memory": memory,
+            }
+
+            final_state = graph_run_pipeline(pipeline_inputs)
+            output_path = Path("output") / f"article_{eval_run_id}_{case.id}.md"
+            if "article" in final_state:
+                output_path.parent.mkdir(exist_ok=True, parents=True)
+                output_path.write_text(final_state["article"], encoding="utf-8")
+            run_out["output_path"] = str(output_path)
         except Exception as exc:
             run_error["error"] = exc
 
@@ -308,10 +322,8 @@ def run_single_case(eval_run_id: str, case: EvalCase, verbosity: str) -> dict[st
         if worker.is_alive():
             event = read_last_event(event_log_path)
             if event:
-                event_type = event.get("type", "unknown")
-                phase = event.get("phase", "")
-                phase_str = f" phase={phase}" if phase else ""
-                signature = f"{event_type}:{phase}:{event.get('timestamp', event.get('ts', ''))}"
+                event_type = event.get("event", "unknown")
+                signature = f"{event_type}:{event.get('ts', '')}"
                 if signature != last_event_signature:
                     last_event_signature = signature
                     last_event_change_t = monotonic()
@@ -319,7 +331,7 @@ def run_single_case(eval_run_id: str, case: EvalCase, verbosity: str) -> dict[st
                 stale_str = f" stale={stale_for}s" if stale_for >= 30 else ""
                 print(
                     f"    heartbeat [{case.id}] t+{int(monotonic() - wall_clock_start)}s"
-                    f" event={event_type}{phase_str}{stale_str}",
+                    f" event={event_type}{stale_str}",
                     flush=True,
                 )
             else:
