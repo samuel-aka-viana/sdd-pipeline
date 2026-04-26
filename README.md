@@ -13,7 +13,7 @@ flowchart TD
     subgraph EP["ENTRY POINT"]
         U["User Input"]
         M["main.py<br/>(CLI Entry)"]
-        P["CLI Prompts<br/>cli/prompts.py<br/><br/>Collects tool, context, focus and questions<br/>Optional: reuse URLs/research from prior runs"]
+        P["CLI Prompts<br/>cli/prompts.py<br/><br/>Collects tool, context, focus, and questions<br/>Optional: reuse URLs/research from prior runs"]
 
         U --> M --> P
     end
@@ -70,68 +70,68 @@ flowchart TD
     AN --> AA
 ````
 
-O caminho principal hoje é `main.py` + `sdd/graph/*` + `sdd/agents/*`. A arquitetura antiga baseada em `pipeline.py`, `skills/`, `pipeline_stages/` e `orchestration/` já foi removida.
+The main path today is `main.py` + `sdd/graph/*` + `sdd/agents/*`. The old architecture based on `pipeline.py`, `skills/`, `pipeline_stages/`, and `orchestration/` has already been removed.
 
 ---
 
-## Arquitetura Atual
+## Current Architecture
 
-| Área                        | Responsabilidade                                                                  |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| `main.py`                   | CLI interativa; coleta entrada, reuso opcional de URLs/pesquisa e dispara o grafo |
-| `cli/prompts.py`            | Helpers de prompt do terminal                                                     |
-| `sdd/graph/`                | LangGraph: state, nodes, routing e runner com `MemorySaver`                       |
-| `sdd/agents/`               | Researcher, Evidence, Analyst, Writer e Critic                                    |
-| `sdd/checks/`               | Checks determinísticos antes da crítica LLM                                       |
-| `sdd/config/`               | Configuração split: modelos, pipeline, qualidade e infraestrutura                 |
-| `sdd/constraints.py`        | Constantes de domínio, queries, blacklist e heurísticas de fonte                  |
-| `sdd/researcher_modules/`   | Internals do researcher: scrape, relevância, contexto, cache e debug              |
-| `sdd/prompts_manager/`      | Prompts YAML e loader atual                                                       |
-| `llm/`                      | Cliente LLM, provider config, structured output e token counter                   |
-| `memory/research_chroma.py` | Chroma local para indexação e busca semântica                                     |
-| `memory/memory_store.py`    | Memória operacional ainda usada por CLI/grafo/evals                               |
-| `tools/`                    | Busca, scraping Crawl4AI/fallback e ranking de fontes                             |
-| `utils/`                    | Observabilidade, logger e utilitários operacionais de Chroma                      |
-| `evals/`                    | Runner de avaliação em lote                                                       |
+| Area                        | Responsibility                                                                           |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| `main.py`                   | Interactive CLI; collects input, optionally reuses URLs/research, and triggers the graph |
+| `cli/prompts.py`            | Terminal prompt helpers                                                                  |
+| `sdd/graph/`                | LangGraph: state, nodes, routing, and runner with `MemorySaver`                          |
+| `sdd/agents/`               | Researcher, Evidence, Analyst, Writer, and Critic                                        |
+| `sdd/checks/`               | Deterministic checks before LLM critique                                                 |
+| `sdd/config/`               | Split configuration: models, pipeline, quality, and infrastructure                       |
+| `sdd/constraints.py`        | Domain constants, queries, blacklist, and source heuristics                              |
+| `sdd/researcher_modules/`   | Researcher internals: scrape, relevance, context, cache, and debug                       |
+| `sdd/prompts_manager/`      | YAML prompts and current loader                                                          |
+| `llm/`                      | LLM client, provider config, structured output, and token counter                        |
+| `memory/research_chroma.py` | Local Chroma for indexing and semantic search                                            |
+| `memory/memory_store.py`    | Operational memory still used by the CLI/graph/evals                                     |
+| `tools/`                    | Search, Crawl4AI/fallback scraping, and source ranking                                   |
+| `utils/`                    | Observability, logger, and Chroma operational utilities                                  |
+| `evals/`                    | Batch evaluation runner                                                                  |
 
-## Estado Real da Migração
+## Real Migration Status
 
-Concluído:
+Completed:
 
-* Grafo LangGraph em `sdd/graph`.
-* Agentes em `sdd/agents`.
-* Checks determinísticos em `sdd/checks`.
-* Config split em `sdd/config`.
-* Constantes do researcher movidas para `sdd/constraints.py`.
-* `researcher_modules/run_flow.py` removido.
-* `utils/article_sanitizer.py` removido.
-* Blacklist de fontes fracas centralizada em `LOW_SIGNAL_DOMAINS`.
+* LangGraph graph in `sdd/graph`.
+* Agents in `sdd/agents`.
+* Deterministic checks in `sdd/checks`.
+* Split config in `sdd/config`.
+* Researcher constants moved to `sdd/constraints.py`.
+* `researcher_modules/run_flow.py` removed.
+* `utils/article_sanitizer.py` removed.
+* Weak-source blacklist centralized in `LOW_SIGNAL_DOMAINS`.
 
-Ainda híbrido:
+Still hybrid:
 
-* `PromptManager` ainda é usado por `sdd/base.py` e pelo researcher.
-* `llm/structured.py` e `generate_structured()` ainda são usados pelo critic.
-* `memory/memory_store.py` ainda é dependência do fluxo principal.
-* LangSmith existe nos evals, mas o pipeline principal ainda só grava eventos locais em `output/pipeline_events.jsonl`.
-
----
-
-## Configuração
-
-A fonte principal de configuração nova fica em `sdd/config/`:
-
-| Arquivo         | Conteúdo                                  |
-| --------------- | ----------------------------------------- |
-| `models.yaml`   | Modelos por papel e provider explícito    |
-| `pipeline.yaml` | Iterações, timeout e backend              |
-| `quality.yaml`  | Regras de qualidade e seções obrigatórias |
-| `infra.yaml`    | Search, scraper e providers externos      |
-
-`spec/article_spec.yaml` ainda existe por compatibilidade com validações antigas, mas o runtime novo usa `sdd.config.load_runtime_config()` como visão consolidada.
+* `PromptManager` is still used by `sdd/base.py` and by the researcher.
+* `llm/structured.py` and `generate_structured()` are still used by the critic.
+* `memory/memory_store.py` is still a dependency of the main flow.
+* LangSmith exists in evals, but the main pipeline still only writes local events to `output/pipeline_events.jsonl`.
 
 ---
 
-## Instalação
+## Configuration
+
+The main source of the new configuration is in `sdd/config/`:
+
+| File            | Contents                                |
+| --------------- | --------------------------------------- |
+| `models.yaml`   | Models by role and explicit provider    |
+| `pipeline.yaml` | Iterations, timeout, and backend        |
+| `quality.yaml`  | Quality rules and required sections     |
+| `infra.yaml`    | Search, scraper, and external providers |
+
+`spec/article_spec.yaml` still exists for compatibility with old validations, but the new runtime uses `sdd.config.load_runtime_config()` as the consolidated view.
+
+---
+
+## Installation
 
 ```bash
 uv venv --python 3.12
@@ -140,19 +140,19 @@ uv sync
 cp .env.example .env
 ```
 
-Se usar embeddings Ollama no Chroma:
+If using Ollama embeddings in Chroma:
 
 ```bash
 uv add ollama
 ```
 
-Importante: uma collection Chroma persistida não pode trocar de embedding function. Se `.memory/chroma_db` foi criado com embedding default e você ligar `CHROMA_EMBEDDING_PROVIDER=ollama`, recrie/reindexe o banco.
+Important: a persisted Chroma collection cannot switch embedding functions. If `.memory/chroma_db` was created with the default embedding and you enable `CHROMA_EMBEDDING_PROVIDER=ollama`, recreate/reindex the database.
 
 ---
 
 ## `.env`
 
-Principais variáveis:
+Main variables:
 
 ```env
 LLM_PROVIDER=openrouter_free
@@ -165,27 +165,27 @@ LLM_MODEL_CRITIC=<model-id>
 OPENROUTER_API_KEY=<your-key>
 OLLAMA_LOCAL_BASE_URL=http://localhost:11434
 
-# Opcional: Chroma com Ollama embeddings
+# Optional: Chroma with Ollama embeddings
 # CHROMA_EMBEDDING_PROVIDER=ollama
 # CHROMA_EMBED_MODEL=nomic-embed-text:latest
 # CHROMA_EMBED_OLLAMA_URL=http://localhost:11434
 
-# Debug HTML bruto
+# Raw HTML debug
 # SDD_HTML_DEBUG=1
 ```
 
 ---
 
-## Uso
+## Usage
 
-Rodar pipeline:
+Run the pipeline:
 
 ```bash
 python main.py
 python main.py --refresh-search
 ```
 
-Saída principal:
+Main output:
 
 ```text
 output/article.md
@@ -195,7 +195,7 @@ output/debug_context_<tool>.md
 output/chains/
 ```
 
-Monitorar eventos:
+Monitor events:
 
 ```bash
 python -m utils.watch_events
@@ -222,31 +222,31 @@ uv run python -m evals.batch_runner --case-id docker_vs_podman_dev_linux
 
 ---
 
-## Filtros e Blacklist
+## Filters and Blacklist
 
-O filtro de fontes vive em `sdd/constraints.py`.
+The source filter lives in `sdd/constraints.py`.
 
-Camadas principais:
+Main layers:
 
-* `DEFAULT_SKIP_DOMAINS`: redes sociais, vídeo, mídia, domínios fora do escopo técnico.
-* `LOW_SIGNAL_DOMAINS`: SEO/listicles, marketplaces, comparadores genéricos, job search, conteúdo raso.
-* `LOW_SIGNAL_PATH_MARKERS`: padrões de path como `/compare/`.
-* `TRUSTED_TECH_DOMAINS`: domínios técnicos confiáveis.
+* `DEFAULT_SKIP_DOMAINS`: social networks, video, media, and domains outside the technical scope.
+* `LOW_SIGNAL_DOMAINS`: SEO/listicles, marketplaces, generic comparison sites, job search, and shallow content.
+* `LOW_SIGNAL_PATH_MARKERS`: path patterns such as `/compare/`.
+* `TRUSTED_TECH_DOMAINS`: trusted technical domains.
 
-Depois da análise de `output/urls_ansible.txt`, foram adicionados à blacklist domínios como `guru99.com`, `bobcares.com`, `alternativeto.net`, `freelancer.com`, `speakerdeck.com`, `webkkk.net`, `dohost.us`, `a-listware.com` e similares.
+After analyzing `output/urls_ansible.txt`, domains such as `guru99.com`, `bobcares.com`, `alternativeto.net`, `freelancer.com`, `speakerdeck.com`, `webkkk.net`, `dohost.us`, `a-listware.com`, and similar domains were added to the blacklist.
 
-Fontes mantidas como potencialmente úteis:
+Sources kept as potentially useful:
 
-* docs oficiais (`docs.ansible.com`, `docs.redhat.com`)
-* GitHub quando o resultado é projeto/repositório relevante
-* fornecedores técnicos como AWS, HashiCorp, Elastic
-* blogs técnicos com conteúdo específico, caso passem pelos filtros de relevância
+* official docs (`docs.ansible.com`, `docs.redhat.com`)
+* GitHub when the result is a relevant project/repository
+* technical vendors such as AWS, HashiCorp, Elastic
+* technical blogs with specific content, provided they pass the relevance filters
 
 ---
 
 ## Scraping
 
-Scraper principal:
+Main scraper:
 
 * `tools/scraper_crawl4ai.py`
 
@@ -255,18 +255,18 @@ Fallback:
 * `tools/scraper_tool.py`
 * `tools/scraper_factory.py`
 
-Tratamentos já aplicados:
+Applied handling:
 
-* `CrawlerRunConfig.wait_until = "load"` para reduzir captura durante navegação.
-* erro `Page.content ... navigating and changing the content` classificado como `navigation_in_progress`.
-* `navigation_in_progress` é retryável com backoff maior.
-* domínios fracos entram em blacklist para reduzir custo de scraping.
+* `CrawlerRunConfig.wait_until = "load"` to reduce capture during navigation.
+* `Page.content ... navigating and changing the content` error classified as `navigation_in_progress`.
+* `navigation_in_progress` is retryable with a larger backoff.
+* weak domains are added to the blacklist to reduce scraping cost.
 
 ---
 
-## Verificação
+## Verification
 
-Estado mais recente validado:
+Most recently validated state:
 
 ```bash
 uv run pytest -q
@@ -279,7 +279,7 @@ Lint:
 uv run ruff check
 ```
 
-O `ruff` ainda falha por complexidade (`C901`) em pontos estruturais antigos:
+`ruff` still fails due to complexity (`C901`) in old structural points:
 
 * `memory/research_chroma.py::chunk_content`
 * `sdd/researcher_modules/context_builder.py::build_context`
@@ -291,11 +291,11 @@ O `ruff` ainda falha por complexidade (`C901`) em pontos estruturais antigos:
 
 ---
 
-## Regras de Manutenção
+## Maintenance Rules
 
-* `main.py` deve continuar fino.
-* Observabilidade detalhada fica em `output/pipeline_events.jsonl` e `utils/watch_events.py`.
-* Corrigir qualidade no pipeline/agentes/filtros, não em artefatos gerados manualmente.
-* Blacklist deve bloquear domínios claramente fracos; não bloquear docs oficiais, vendor docs ou repositórios úteis sem evidência.
-* Se trocar embedding do Chroma, reindexar a collection.
-* Antes de declarar pronto: `uv run pytest -q`; depois atacar `ruff` quando a mudança tocar arquivos com lint.
+* `main.py` must stay thin.
+* Detailed observability lives in `output/pipeline_events.jsonl` and `utils/watch_events.py`.
+* Fix quality in the pipeline/agents/filters, not by manually editing generated artifacts.
+* The blacklist must block clearly weak domains; do not block official docs, vendor docs, or useful repositories without evidence.
+* If the Chroma embedding changes, reindex the collection.
+* Before declaring ready: `uv run pytest -q`; then address `ruff` when the change touches files with lint issues.
