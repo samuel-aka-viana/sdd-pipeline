@@ -65,6 +65,6 @@ class EvidencePack(BaseModel):
     ferramentas: str
     foco: str
     total_urls_found: int = 0
-    retained_urls: list[str] = []
-    items: list[EvidenceItem] = []
-    gaps: list[EvidenceGap] = []
+    retained_urls: list[str] = Field(default_factory=list)
+    items: list[EvidenceItem] = Field(default_factory=list)
+    gaps: list[EvidenceGap] = Field(default_factory=list)

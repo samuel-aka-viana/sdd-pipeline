@@ -1,5 +1,4 @@
 """Tests for EvidenceBuilderSkill and EvidencePack schemas."""
-import pytest
 from skills.schemas import EvidenceGap, EvidenceItem, EvidencePack
 
 
