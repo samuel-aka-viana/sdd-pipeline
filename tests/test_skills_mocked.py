@@ -222,7 +222,7 @@ class TestAnalystSkillMocked:
             ],
         )
 
-        result = analyst.run(
+        analyst.run(
             research="fallback research",
             ferramentas="docker",
             contexto="production",
