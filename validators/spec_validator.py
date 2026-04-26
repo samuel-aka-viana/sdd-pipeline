@@ -308,6 +308,27 @@ class SpecValidator:
                 correction=f"Adicione mais {min_tips - tip_count} dica(s) na seção de otimizações",
             )
 
+    def validate_sdd_configs(self, config_dir="sdd/config") -> list[str]:
+        """Structural validation for the 4 sdd/config/ YAML files. Returns list of problems."""
+        required = {
+            "models.yaml": ["researcher", "analyst", "writer", "critic", "critic_fast"],
+            "quality.yaml": ["no_placeholders", "min_refs", "min_errors", "min_tips", "required_sections", "url_validation"],
+            "pipeline.yaml": ["max_iterations", "max_enrichments", "max_stagnant", "timeout_total_seconds", "backend"],
+            "infra.yaml": ["scraper", "search", "ollama", "openrouter"],
+        }
+        problems = []
+        base = Path(config_dir)
+        for filename, keys in required.items():
+            filepath = base / filename
+            if not filepath.exists():
+                problems.append(f"Missing sdd/config file: {filename}")
+                continue
+            data = yaml.safe_load(filepath.read_text()) or {}
+            for key in keys:
+                if key not in data:
+                    problems.append(f"{filename}: missing required key '{key}'")
+        return problems
+
     def problems_as_prompt(self, result):
         if result.passed:
             return ""
