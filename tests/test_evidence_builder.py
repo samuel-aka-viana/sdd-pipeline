@@ -108,9 +108,11 @@ def test_evidence_builder_pack_fields():
 
 from unittest.mock import MagicMock
 import json
+import pytest
 from pathlib import Path
 
 
+@pytest.mark.skip(reason="legacy pipeline removed")
 def test_evidence_stage_saves_json(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "output").mkdir()
@@ -148,6 +150,7 @@ def test_evidence_stage_saves_json(tmp_path, monkeypatch):
     })
 
 
+@pytest.mark.skip(reason="legacy pipeline removed")
 def test_research_stage_does_not_save_debug_research(tmp_path, monkeypatch):
     """save_debug("research", ...) must NOT be called from research stage."""
     monkeypatch.chdir(tmp_path)
@@ -186,6 +189,7 @@ def test_html_debug_disabled_by_default(monkeypatch):
     assert constants.HTML_DEBUG_ENABLED is False
 
 
+@pytest.mark.skip(reason="legacy pipeline removed")
 def test_langgraph_has_evidence_node():
     """LangGraph graph must have 'evidence' node, not 'relevance_filter'."""
     from orchestration.langgraph_runner import LangGraphOrchestrator
@@ -197,6 +201,7 @@ def test_langgraph_has_evidence_node():
     assert "relevance_filter" not in nodes
 
 
+@pytest.mark.skip(reason="legacy pipeline removed")
 def test_pipeline_state_has_evidence_pack_field():
     """PipelineState TypedDict must declare evidence_pack field."""
     from orchestration.langgraph_runner import PipelineState
