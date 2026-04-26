@@ -5,3 +5,10 @@ output/
 artigos/
 .idea
 .vscode
+*/__pycache__/
+.pytest_cache/
+.claude
+.ruff_cache/
+__pycache__
+.codex
+.coverage

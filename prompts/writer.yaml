@@ -7,7 +7,6 @@ main: |
   CONTEXTO: {contexto}
   FOCO: {foco}
   {questoes_block}
-  {correction_block}
   {lessons_block}
   {research_warning}
 
@@ -28,6 +27,8 @@ main: |
   5. URLs em referências devem ser APENAS das URLs consultadas na pesquisa
   6. Toda tabela deve ter TODAS as células preenchidas
   7. Toda solução em Armadilhas deve ter comando real com no mínimo 20 caracteres
+  8. Em "## Dicas de Otimização", use SOMENTE lista markdown com prefixo "- "
+     e texto iniciando direto (sem começar com **negrito** no primeiro caractere)
   {objective_requirements_block}
 
   TEMPLATE (inclua TODAS as seções):
@@ -69,7 +70,9 @@ main: |
   ```
 
   ## Dicas de Otimização
-  [mínimo 3 dicas com comandos reais quando disponíveis]
+  - Dica 1 objetiva (inclua comando real quando disponível)
+  - Dica 2 objetiva (inclua comando real quando disponível)
+  - Dica 3 objetiva (inclua comando real quando disponível)
 
   ## Conclusão
   [trade-offs para {contexto} considerando {foco}]
@@ -77,3 +80,5 @@ main: |
   ## Referências
   [mínimo 3 URLs reais da pesquisa, formato: - URL]
   {question_answer_template_block}
+  <<<CACHE_BREAKPOINT>>>
+  {correction_block}

@@ -98,11 +98,11 @@ research:
     path: ".memory/search_cache.json"
 
   scraper:
-    max_chars_per_page: 4000
-    max_scrapes_per_tool: 10
-    timeout_seconds: 15
+    max_chars_per_page: 16000
+    max_scrapes_per_tool: 12
+    timeout_seconds: 10
     compliant_mode: true
-    max_retries: 2
+    max_retries: 1
     skip_domains:
       - "youtube.com"
       - "youtu.be"
@@ -141,9 +141,30 @@ research:
       - "fastlaunchapi.dev"
       - "codezup.com"
       - "johal.in"
+      # Homônimos de "ministack" (hardware/áudio/loja) e páginas fora do escopo de software
+      - "programming4.us"
+      - "petapixel.com"
+      - "storagereview.com"
+      - "studylib.net"
+      - "macsales.com"
+      - "owc.com"
+      - "macrumors.com"
+      - "newertech.com"
+      - "manualslib.es"
+      - "alternate.es"
+      - "plazavea.com.pe"
+      - "musisol.com"
+      - "soydemac.com"
   source_guardrails:
     min_score_keep: 3
     max_results_per_query: 5
+
+  relevance_filter:
+    # Limita as URLs incluídas no contexto do analyst.
+    # Prioridade: docs > usos (github/stackoverflow) > blog.
+    max_urls: 30
+    # Rerank semântico via embeddings do Chroma (desempata dentro da categoria).
+    rerank: true
 
 analysis:
   required_fields:
@@ -156,10 +177,13 @@ analysis:
 pipeline:
   # timeout global da execução inteira (segundos).
   # null/descomente para desabilitar limite total.
+  # Orçamento: 1 pass (~960s LLM + ~240s scraper) + 1 retry writer/critic (~540s) ≈ 1740s, dentro de 1800s.
   timeout_total_seconds: 1800
-  max_iterations: 3
+  max_iterations: 2
   max_stagnant_iterations: 2
   max_research_enrichments: 1
+  orchestration:
+    backend: "langgraph"
 
 # ── Modelos ──────────────────────────────────────────────────────
 # Fonte principal: .env (LLM_MODEL_RESEARCHER/ANALYST/WRITER/CRITIC)
@@ -171,6 +195,10 @@ models:
   analyst: "nousresearch/hermes-3-llama-3.1-405b:free"
   writer: "openai/gpt-oss-120b:free"
   critic: "nousresearch/hermes-3-llama-3.1-405b:free"
+  # Opcional: modelo menor para sub-tarefas do critic (semantic_check, false-positive filter).
+  # Lookup: env LLM_MODEL_CRITIC_FAST > spec.models.critic_fast > critic default.
+  # Ex: critic_fast: "z-ai/glm-4.5-air:free"
+  critic_fast: "z-ai/glm-4.5-air:free"
 
 # ── Opção 2: Ollama local ───────────────────────────────────────
 # 3a) 8 GB RAM, CPU only (descomente para usar)
@@ -203,23 +231,27 @@ models:
 llm:
   provider: "openrouter_free"
   timeout:
-    researcher: 600
-    analyst: 600
-    writer: 900
-    critic: 900
-    default: 600
+    # Soma worst-case 1 pass = 960s; cabe + 1 retry (writer+critic=540s) em 1800s globais.
+    researcher: 240
+    analyst: 180
+    writer: 360
+    critic: 180
+    default: 240
   temperature:
     researcher: 0.1
     analyst: 0.1
     writer: 0.3
     critic: 0.0
   context_length:
-    default: 8192
-    writer: 16384
+    default: 16000
+    researcher: 16000
+    analyst: 16000
+    writer: 16000
+    critic: 16000
   writer_input:
-    max_research_chars: 12000
-    max_analysis_chars: 12000
-    max_correction_chars: 2500
+    max_research_chars: 16000
+    max_analysis_chars: 16000
+    max_correction_chars: 4000
   providers:
     openrouter:
       base_url: "https://openrouter.ai/api/v1"

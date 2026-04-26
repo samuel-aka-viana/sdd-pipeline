@@ -44,8 +44,9 @@ class TestResearcherSkillMocked:
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
 
-        researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory)
-        
+        mock_chroma = MagicMock()
+        researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory, chroma=mock_chroma)
+
         # Act
         result = researcher.run("docker", "kubernetes", "comparação geral")
         
@@ -72,10 +73,11 @@ class TestResearcherSkillMocked:
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
 
-        researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory)
-        
+        mock_chroma = MagicMock()
+        researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory, chroma=mock_chroma)
+
         # Act
-        researcher.run("docker", "kubernetes", "performance / throughput", 
+        researcher.run("docker", "kubernetes", "performance / throughput",
                       questoes=["latency benchmarks"])
         
         # Assert
@@ -102,8 +104,9 @@ class TestResearcherSkillMocked:
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
 
-        researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory)
-        
+        mock_chroma = MagicMock()
+        researcher = ResearcherSkill(mock_search, mock_scraper, mock_memory, chroma=mock_chroma)
+
         # Act
         result = researcher.run("nonexistent-tool")
         
@@ -115,7 +118,7 @@ class TestAnalystSkillMocked:
     """Testes de Analyst com LLM mockado."""
     
     @pytest.mark.deterministic
-    @patch('skills.analyst.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_analyst_run_single_tool_mode(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -139,7 +142,7 @@ class TestAnalystSkillMocked:
         assert isinstance(result, str)
 
     @pytest.mark.deterministic
-    @patch('skills.analyst.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_analyst_run_comparison_mode(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -163,7 +166,7 @@ class TestAnalystSkillMocked:
         assert isinstance(result, str)
 
     @pytest.mark.deterministic
-    @patch('skills.analyst.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_analyst_run_integration_mode(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -191,12 +194,12 @@ class TestWriterSkillMocked:
     """Testes de Writer com LLM mockado."""
     
     @pytest.mark.deterministic
-    @patch('skills.writer.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_writer_run_basic(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
-        mock_instance.generate.return_value = Mock(
+        mock_instance.generate_cached.return_value = Mock(
             response="""# TLDR
 Brief summary.
 
@@ -230,12 +233,12 @@ Summary.
 - https://docs.docker.com"""
         )
         mock_llm_class.return_value = mock_instance
-        
+
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
-        
+
         writer = WriterSkill(mock_memory)
-        
+
         # Act
         result = writer.run(
             research="Docker research",
@@ -243,26 +246,26 @@ Summary.
             ferramentas="docker",
             contexto="production"
         )
-        
+
         # Assert
-        assert mock_instance.generate.called
+        assert mock_instance.generate_cached.called
         assert isinstance(result, str)
         assert "TLDR" in result or "tldr" in result.lower()
 
     @pytest.mark.deterministic
-    @patch('skills.writer.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_writer_run_with_correction_instructions(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
-        mock_instance.generate.return_value = Mock(response="# TLDR\nCorrected article")
+        mock_instance.generate_cached.return_value = Mock(response="# TLDR\nCorrected article")
         mock_llm_class.return_value = mock_instance
-        
+
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
-        
+
         writer = WriterSkill(mock_memory)
-        
+
         # Act
         writer.run(
             research="research",
@@ -271,28 +274,28 @@ Summary.
             contexto="test",
             correction_instructions="Fix section X"
         )
-        
+
         # Assert
-        assert mock_instance.generate.called
-        # Verify correction_instructions were passed to LLM
-        call_kwargs = mock_instance.generate.call_args[1]
-        assert "prompt" in call_kwargs
-        assert "Fix section X" in call_kwargs["prompt"]
+        assert mock_instance.generate_cached.called
+        # correction_instructions volátil — vai pro suffix; demais conteúdo no prefix
+        call_kwargs = mock_instance.generate_cached.call_args[1]
+        full_prompt = call_kwargs.get("stable_prefix", "") + call_kwargs.get("volatile_suffix", "")
+        assert "Fix section X" in full_prompt
 
     @pytest.mark.deterministic
-    @patch('skills.writer.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_writer_run_weak_research_quality(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
-        mock_instance.generate.return_value = Mock(response="# TLDR\nArticle")
+        mock_instance.generate_cached.return_value = Mock(response="# TLDR\nArticle")
         mock_llm_class.return_value = mock_instance
-        
+
         mock_memory = MagicMock()
         mock_memory.get_lessons_for_prompt.return_value = ""
-        
+
         writer = WriterSkill(mock_memory)
-        
+
         # Act
         writer.run(
             research="limited research",
@@ -301,24 +304,24 @@ Summary.
             contexto="test",
             research_quality="weak"
         )
-        
+
         # Assert
-        assert mock_instance.generate.called
-        # Verify weak research warning was included
-        call_kwargs = mock_instance.generate.call_args[1]
-        assert "prompt" in call_kwargs
-        assert "AVISO" in call_kwargs["prompt"]
+        assert mock_instance.generate_cached.called
+        call_kwargs = mock_instance.generate_cached.call_args[1]
+        full_prompt = call_kwargs.get("stable_prefix", "") + call_kwargs.get("volatile_suffix", "")
+        assert "AVISO" in full_prompt
 
 
 class TestCriticSkillMocked:
     """Testes de Critic com LLM mockado."""
     
     @pytest.mark.deterministic
-    @patch('skills.critic.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_critic_evaluate_deterministic_pass(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
+        mock_instance.generate.return_value.response = "SEM PROBLEMAS"
         mock_llm_class.return_value = mock_instance
 
         mock_memory = MagicMock()
@@ -366,7 +369,7 @@ Conclusion.
         assert result["layer"] == "semantic"
 
     @pytest.mark.deterministic
-    @patch('skills.critic.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_critic_evaluate_deterministic_fail(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()
@@ -386,7 +389,7 @@ Conclusion.
         assert len(result["problems"]) > 0
 
     @pytest.mark.deterministic
-    @patch('skills.critic.LLMClient')
+    @patch('skills.base.LLMClient')
     def test_critic_evaluate_semantic_fail(self, mock_llm_class):
         # Arrange
         mock_instance = MagicMock()

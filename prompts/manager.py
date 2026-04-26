@@ -4,6 +4,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Marker para separar prefixo cacheável (estático) de sufixo volátil dentro de
+# um template YAML. Usado por get_with_cache() para entregar (stable, volatile).
+CACHE_MARKER = "<<<CACHE_BREAKPOINT>>>"
+
 
 class PromptManager:
     """Load prompts from YAML. Log usage metrics to memory."""
@@ -35,6 +39,14 @@ class PromptManager:
         except Exception as e:
             logger.error(f"Error loading prompt {role}/{template_key}: {e}")
             return ""
+
+    def get_with_cache(self, role: str, template_key: str, **kwargs) -> tuple[str, str]:
+        """Retorna (stable_prefix, volatile_suffix). Sem marker, volatile=''."""
+        rendered = self.get(role, template_key, **kwargs)
+        if not rendered or CACHE_MARKER not in rendered:
+            return rendered, ""
+        stable, _, volatile = rendered.partition(CACHE_MARKER)
+        return stable.rstrip() + "\n", volatile.lstrip()
 
     def _load(self, role: str) -> dict:
         """Load and cache prompt file for role."""

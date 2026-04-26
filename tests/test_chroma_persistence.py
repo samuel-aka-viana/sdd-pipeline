@@ -9,9 +9,9 @@ class TestChromaPersistence:
     """Test that scraped content is correctly saved to Chroma."""
 
     @pytest.fixture
-    def chroma(self):
-        """Fresh Chroma instance for testing."""
-        return ResearchChroma(db_path=".memory/test_chroma_db")
+    def chroma(self, tmp_path):
+        """Fresh Chroma instance per test, isolated in tmp_path."""
+        return ResearchChroma(db_path=str(tmp_path / "chroma_db"))
 
     def test_save_scraped_content_returns_true(self, chroma):
         """save_scraped_content should return True on success."""
@@ -220,23 +220,10 @@ class TestChromaIntegration:
 
     def test_researcher_chroma_initialized(self):
         """Researcher should have Chroma available."""
-        from skills.researcher import HAS_CHROMA
-
-        if HAS_CHROMA:
-            # Just verify that HAS_CHROMA is True means Chroma can be imported
-            from memory.research_chroma import ResearchChroma
-            chroma = ResearchChroma()
-            assert chroma is not None, "Chroma should be importable"
-        else:
-            pytest.skip("Chroma not available")
+        from memory.research_chroma import ResearchChroma
+        chroma = ResearchChroma()
+        assert chroma is not None, "Chroma should be importable"
 
     def test_researcher_saves_to_chroma(self):
         """Researcher should call save_scraped_content."""
-        from skills.researcher import ResearcherSkill, HAS_CHROMA
-
-        if not HAS_CHROMA:
-            pytest.skip("Chroma not available")
-
-        # This is a mocked test - full integration would require
-        # mocking the search and scraper
         pytest.skip("Full integration test requires mocking")

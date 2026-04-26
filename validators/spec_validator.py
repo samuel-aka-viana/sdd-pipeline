@@ -277,22 +277,27 @@ class SpecValidator:
     def validate_min_tips(self, context: dict):
         min_tips = self.rules.get("min_tips", 3)
         optimization_section = re.search(
-            r'#\s*(?:otimiza|dica|performance)[^\n]*\n(.*?)(?=#\s|\Z)',
+            r'#{1,6}\s*(?:otimiza|dica|performance)[^\n]*\n(.*?)(?=\n#{1,6}\s|\Z)',
             context["artigo"],
-            re.IGNORECASE | re.DOTALL
+            re.IGNORECASE | re.DOTALL,
         )
         if not optimization_section:
             self.add_problem(
                 context=context,
-                problem=f"Seção de otimizações/dicas não encontrada ou vazia",
+                problem="Seção de otimizações/dicas não encontrada ou vazia",
                 spec_reference="article.quality_rules.min_tips",
                 correction=f"Adicione seção '## Dicas de Otimização' com mínimo {min_tips} dicas listadas",
             )
             return
 
         tips_text = optimization_section.group(1)
-        # Match both bullet points (- *) and numbered lists (1. 2. etc)
-        tip_items = re.findall(r'(?:^|\n)\s*(?:[-*]|\d+\.)\s+\w', tips_text, re.MULTILINE)
+        # Aceita bullets/numeração, incluindo itens com negrito no início
+        # Ex.: "- **Use ..." e "1. **Ajuste ..."
+        tip_items = re.findall(
+            r'(?:^|\n)\s*(?:[-*]|\d+\.)\s+(?:\*\*|__)?[^\s`*_-]',
+            tips_text,
+            re.MULTILINE,
+        )
         tip_count = len(tip_items)
 
         if tip_count < min_tips:

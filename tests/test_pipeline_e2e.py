@@ -19,7 +19,10 @@ class TestPipelineE2E:
     @pytest.fixture
     def critic(self, memory):
         """Create CriticSkill with mocked LLM."""
-        with patch('skills.critic.LLMClient'):
+        with patch('skills.base.LLMClient') as mock_llm_class:
+            mock_instance = mock_llm_class.return_value
+            mock_instance.model_for_role.return_value = "test-model"
+            mock_instance.generate.return_value.response = "SEM PROBLEMAS"
             return CriticSkill(memory, "spec/article_spec.yaml")
 
     def test_pipeline_flow_with_invalid_article(self, critic):

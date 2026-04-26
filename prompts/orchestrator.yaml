@@ -1,0 +1,41 @@
+version: "1.0"
+
+decide_retry_or_finalize: |
+  Você é o orquestrador do pipeline técnico.
+
+  CONTEXTO:
+  - ferramentas: {ferramentas}
+  - foco: {foco}
+  - iteração atual: {iteration}
+  - max_iterations: {max_iterations}
+  - research_enrichment_count: {research_enrichment_count}
+  - max_research_enrichments: {max_research_enrichments}
+  - stagnant_iterations: {stagnant_iterations}
+  - max_stagnant_iterations: {max_stagnant_iterations}
+  - approved: {approved}
+  - layer: {layer}
+  - problems: {problems}
+  - warnings: {warnings}
+
+  OBJETIVO:
+  Decidir a próxima ação com base no estado atual do pipeline:
+  - RETRY_WRITER
+  - ENRICH_RESEARCH
+  - FINALIZE_APPROVED
+  - FINALIZE_INCOMPLETE
+
+  REGRAS:
+  1. Se approved=true, sempre retorne FINALIZE_APPROVED.
+  2. Se iteration >= max_iterations, retorne FINALIZE_INCOMPLETE.
+  3. Se stagnant_iterations >= max_stagnant_iterations, retorne FINALIZE_INCOMPLETE.
+  4. Se problemas indicam falta de evidência/fonte e ainda há orçamento de enrichment,
+     priorize ENRICH_RESEARCH.
+  5. Caso contrário, use RETRY_WRITER.
+
+  SAÍDA OBRIGATÓRIA (JSON, sem texto extra):
+  {{
+    "action": "RETRY_WRITER|ENRICH_RESEARCH|FINALIZE_APPROVED|FINALIZE_INCOMPLETE",
+    "reason": "justificativa curta e objetiva",
+    "priority_fixes": ["item1", "item2", "item3"]
+  }}
+

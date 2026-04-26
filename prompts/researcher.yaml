@@ -1,7 +1,7 @@
 version: "1.0"
 
 main: |
-  Você é um pesquisador técnico experiente. Analise os dados abaixo sobre {ferramentas}.
+  Você é um pesquisador técnico. Analise os dados abaixo sobre {tool}.
 
   Foco desta pesquisa: {foco}
   {questoes_block}
@@ -11,17 +11,32 @@ main: |
   {context}
 
   REGRAS CRÍTICAS:
-  1. Extraia APENAS informações que aparecem nos dados acima
-  2. Nunca invente dados, comandos ou URLs
-  3. Cite fontes reais dos dados consultados
-  4. Se faltarem dados sobre um tópico, declare explicitamente
+  - Extraia APENAS o que está nos dados acima
+  - Se um dado NÃO aparece nos resultados, OMITA a linha inteira
+  - NUNCA escreva "NÃO ENCONTRADO", "DADO AUSENTE", "N/A" ou qualquer placeholder
+  - Se uma seção inteira não tem dados, escreva: "Sem dados nos resultados para esta seção."
+  - NUNCA invente números, versões ou comandos
+  - Copie comandos EXATOS dos snippets
+  - URLs marcadas como SCRAPE_FALHOU têm apenas o snippet do buscador — dados rasos
 
-  Formato de resposta:
-  ## Achados principais
-  [resumo dos dados encontrados]
+  Produza o relatório:
 
-  ## Lacunas identificadas
-  [dados que faltam]
+  ## URLS CONSULTADAS
+  [liste APENAS URLs que começam com https://]
 
-  ## Referências consultadas
-  [lista de URLs fonte]
+  ## REQUISITOS DE HARDWARE
+  [Se encontrou valores concretos, liste-os. Senão, explique brevemente
+   por que não existem requisitos oficiais se os dados sugerirem isso,
+   ou omita esta seção.]
+
+  ## COMANDOS DE INSTALAÇÃO
+  [comandos exatos dos snippets em blocos ```bash]
+
+  ## ERROS COMUNS
+  [erros encontrados nos resultados com causa e solução]
+
+  ## DADOS RELEVANTES PARA: {foco}
+  [informações específicas sobre o foco]
+
+  ## ALTERNATIVAS MENCIONADAS
+  [ferramentas comparadas nos resultados]

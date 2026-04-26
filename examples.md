@@ -969,6 +969,358 @@ Critérios:
 
 ---
 
+## IaC e Automação
+
+### Terraform vs Pulumi — infraestrutura como código
+
+**Versão leigo:**
+```
+Ferramentas: terraform e pulumi
+Contexto:    quero provisionar infraestrutura em nuvem de forma repetível
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de setup inicial e curva de aprendizado por perfil de time?
+  esforço operacional mensal (plan, apply, drift, state)?
+  comportamento em falhas parciais e rollback?
+  compatibilidade com múltiplos providers e módulos existentes?
+
+Critérios:
+  compara legibilidade e manutenção de código de infraestrutura
+  inclui exemplo mínimo de provisionamento e destruição
+  mostra diferenças de estado e lock de recursos
+  recomenda por perfil de time (DevOps experiente vs dev generalista)
+```
+
+**Versão técnica:**
+```
+Ferramentas: terraform e pulumi
+Contexto:    plataforma multi-cloud com pipelines de CI/CD
+Foco:        5 (integração)
+
+Perguntas (objetivas, anti-ruído):
+  latência de plan e apply em workspaces com muitos recursos?
+  overhead de state backend (S3/GCS) com locking concorrente?
+  estratégia de modularização e reutilização em múltiplos times?
+  integração com secrets, OIDC e policy-as-code (OPA/Sentinel)?
+
+Critérios:
+  benchmark de plan/apply com número crescente de recursos
+  compara drift detection e reconciliação
+  inclui estratégia de CI para infraestrutura
+  detalha trade-offs de linguagem (HCL vs linguagem geral)
+```
+
+---
+
+## CI/CD
+
+### GitHub Actions vs GitLab CI — pipelines de integração contínua
+
+**Versão leigo:**
+```
+Ferramentas: github actions e gitlab ci
+Contexto:    quero automatizar build, testes e deploy do meu projeto
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de setup inicial para pipeline funcional (passos + minutos)?
+  esforço de manutenção mensal (atualizações, runners, secrets)?
+  custo por minuto de execução com plano free vs pago?
+  facilidade de reutilização de pipelines entre projetos?
+
+Critérios:
+  compara onboarding e manutenção
+  inclui exemplo de pipeline completo (build + test + deploy)
+  mostra diferenças de marketplace e actions reutilizáveis
+  indica quando self-hosted runners fazem diferença
+```
+
+**Versão técnica:**
+```
+Ferramentas: github actions e gitlab ci
+Contexto:    monorepo com múltiplos serviços e runners self-hosted
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  latência de enfileiramento e startup de jobs em carga alta?
+  throughput de jobs paralelos com matrix builds?
+  overhead de cache de dependências e artefatos entre runs?
+  impacto de runners self-hosted vs managed no tempo total do pipeline?
+
+Critérios:
+  benchmark com pipelines equivalentes em workloads reais
+  métricas de queue time, execution time e cache hit rate
+  inclui estratégia de otimização por estágio
+  detalha limites de concorrência e cotas
+```
+
+---
+
+## Service Mesh
+
+### Istio vs Linkerd — malha de serviços
+
+**Versão leigo:**
+```
+Ferramentas: istio e linkerd
+Contexto:    quero observabilidade e segurança entre serviços no Kubernetes
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de instalação e esforço de adoção inicial?
+  overhead de latência p95 com sidecar proxy ativo?
+  esforço operacional mensal (upgrades, configuração, incidentes)?
+  funcionalidades mínimas para mTLS e traffic management?
+
+Critérios:
+  compara complexidade de instalação e operação
+  inclui benchmark de overhead de latência com e sem mesh
+  mostra diferenças de CRDs e modelo de configuração
+  recomenda por maturidade de time e requisitos de segurança
+```
+
+**Versão técnica:**
+```
+Ferramentas: istio e linkerd
+Contexto:    cluster de produção com múltiplos namespaces e políticas de rede
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  overhead de CPU/memória por sidecar em idle e carga?
+  latência p50/p95/p99 adicionada pelo data plane?
+  impacto no throughput de requisições com mTLS ativo?
+  comportamento em circuit breaking e retries sob falha?
+
+Critérios:
+  benchmark com mesma workload e mesma topologia de cluster
+  métricas de latência, CPU e memória por sidecar
+  inclui estratégia de rollout progressivo
+  detalha trade-offs de controle-plane e extensibilidade
+```
+
+---
+
+## Banco de Dados de Séries Temporais
+
+### InfluxDB vs TimescaleDB — time series
+
+**Versão leigo:**
+```
+Ferramentas: influxdb e timescaledb
+Contexto:    quero armazenar métricas e eventos com timestamp para monitoramento
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de setup e esforço de operação mensal?
+  latência p95 de ingestão e consulta em janela recente?
+  esforço de integração com Grafana e stack de observabilidade?
+  comportamento de retenção e compressão ao longo do tempo?
+
+Critérios:
+  compara ingestão, armazenamento e consulta
+  inclui exemplo de schema e query de agregação
+  mostra curva de compressão por volume
+  recomenda por caso de uso (IoT vs métricas de infra vs eventos)
+```
+
+**Versão técnica:**
+```
+Ferramentas: influxdb e timescaledb
+Contexto:    ingestão contínua de métricas com alta cardinalidade e retenção longa
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  throughput de ingestão (pontos/s) em carga sustentada?
+  latência p95 de queries com range longo e agregações por janela?
+  taxa de compressão e custo de storage por série?
+  comportamento com alta cardinalidade (tags/labels)?
+
+Critérios:
+  benchmark com dataset de métricas real ou sintético descrito
+  métricas de ingestão, latência e compressão
+  compara linguagem de query (Flux vs SQL/PromQL)
+  detalha limites de cardinality e retenção automática
+```
+
+---
+
+## ML e Experimentação
+
+### MLflow vs Weights & Biases — rastreamento de experimentos
+
+**Versão leigo:**
+```
+Ferramentas: mlflow e weights & biases
+Contexto:    quero rastrear experimentos de ML e comparar modelos treinados
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de setup inicial para rastrear primeiro experimento?
+  esforço de integração com frameworks (PyTorch, sklearn, HuggingFace)?
+  custo mensal para time pequeno com volume moderado de runs?
+  funcionalidades de colaboração e comparação de runs?
+
+Critérios:
+  compara onboarding e integração com código existente
+  inclui exemplo mínimo de log de métricas e artefatos
+  mostra diferenças de UI para comparação de experimentos
+  indica quando self-hosted faz sentido vs SaaS
+```
+
+**Versão técnica:**
+```
+Ferramentas: mlflow e weights & biases
+Contexto:    pipeline de treinamento contínuo com múltiplos experimentos paralelos
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  overhead de logging no tempo de treino com muitas métricas?
+  latência de registro de artefatos grandes (modelos, datasets)?
+  comportamento com runs paralelas e acesso concorrente ao tracking server?
+  custo de armazenamento de artefatos e metadados em escala?
+
+Critérios:
+  benchmark de overhead de logging por frequência e volume de métricas
+  compara versionamento de modelos e registro de artefatos
+  inclui estratégia de integração com CI/CD de ML
+  detalha trade-offs de self-hosted vs managed
+```
+
+---
+
+## Python Tooling
+
+### uv vs pip vs Poetry — gerenciamento de dependências Python
+
+**Versão leigo:**
+```
+Ferramentas: uv, pip e poetry
+Contexto:    quero gerenciar dependências Python de forma rápida e reprodutível
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de instalação de dependências em ambiente limpo?
+  esforço de migração de projeto existente?
+  compatibilidade com ambientes de CI e containers?
+  curva de aprendizado para time com experiência variada?
+
+Critérios:
+  compara velocidade de resolução e instalação
+  inclui comandos de setup para projeto novo e existente
+  mostra diferenças de lock file e reprodutibilidade
+  indica quando cada ferramenta faz sentido
+```
+
+**Versão técnica:**
+```
+Ferramentas: uv, pip e poetry
+Contexto:    monorepo Python com múltiplos pacotes e CI em escala
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de resolução e instalação com dependências complexas (benchmark)?
+  overhead de criação de venv em pipeline de CI cold start?
+  comportamento com conflitos de versão e extras opcionais?
+  suporte a workspaces e editable installs em monorepo?
+
+Critérios:
+  benchmark reproduzível de install time com dependências fixas
+  compara cache hit rate em CI e tempo de cold start
+  inclui estratégia de lock file em equipes grandes
+  detalha compatibilidade com PEP e ferramentas do ecossistema
+```
+
+---
+
+## Banco de Dados de Grafo
+
+### Neo4j vs TigerGraph vs ArangoDB — grafo e multi-modelo
+
+**Versão leigo:**
+```
+Ferramentas: neo4j, tigergraph e arangodb
+Contexto:    quero modelar e consultar dados com relacionamentos complexos
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de setup e complexidade de modelagem inicial?
+  latência p95 de traversal em grafos de médio porte?
+  esforço operacional mensal (backup, scaling, upgrades)?
+  suporte a queries analíticas além de traversal simples?
+
+Critérios:
+  compara modelo de dados e linguagem de query (Cypher vs GSQL vs AQL)
+  inclui exemplo de grafo com traversal e agregação
+  mostra diferenças de licença e custo operacional
+  recomenda por tipo de grafo (social, fraude, knowledge graph)
+```
+
+**Versão técnica:**
+```
+Ferramentas: neo4j, tigergraph e arangodb
+Contexto:    detecção de fraude e análise de rede com grafos grandes
+Foco:        2 (performance / throughput)
+
+Perguntas (objetivas, anti-ruído):
+  throughput de traversal com N hops em grafo de milhões de nós?
+  latência p95 de queries de vizinhança e shortest path?
+  overhead de ingestão em lote vs streaming de arestas?
+  comportamento de scaling horizontal e particionamento?
+
+Critérios:
+  benchmark com dataset de grafo real ou sintético descrito
+  métricas de throughput, latência e consumo de memória
+  compara expressividade das linguagens de query
+  detalha limites de escala e operação em cluster
+```
+
+---
+
+## Data Contracts
+
+### Datacontract Framework — setup, uso e integração
+
+**Versão leigo:**
+```
+Ferramentas: datacontract cli
+Contexto:    quero definir e validar contratos de dados entre times produtores e consumidores
+Foco:        1 (comparação geral)
+
+Perguntas (objetivas, anti-ruído):
+  tempo de setup para primeiro contrato publicado e validado (passos + minutos)?
+  quais campos mínimos obrigatórios num contrato funcional?
+  como rodar validação de schema e qualidade com um comando?
+  quais erros mais comuns no primeiro uso e como resolver?
+
+Critérios:
+  inclui exemplo real de datacontract.yaml com campos essenciais
+  mostra comandos de lint, test e diff com saída esperada
+  explica o modelo produtor/consumidor sem jargão excessivo
+  usa https://datacontract.com/ e repositório oficial como referência
+```
+
+**Versão técnica:**
+```
+Ferramentas: datacontract cli
+Contexto:    plataforma de data mesh com múltiplos domínios e pipelines em produção
+Foco:        5 (integração)
+
+Perguntas (objetivas, anti-ruído):
+  como integrar datacontract test em CI/CD (GitHub Actions / GitLab CI)?
+  estratégia de versionamento e detecção de breaking change com datacontract diff?
+  como mapear contrato para schema registry (Confluent, Glue) e catálogo (DataHub, OpenMetadata)?
+  como configurar servers e quality checks para múltiplos environments (dev, prod)?
+
+Critérios:
+  inclui pipeline completo: definição, lint, test e publish
+  mostra exemplo de datacontract.yaml com servers, quality e SLA
+  detalha integração com dbt, Spark e Kafka via campo servers
+  cobre estratégia de ownership, aprovação e versionamento semântico
+```
+
+---
+
 ## Referência rápida — foco para benchmark
 
 | Situação | Foco recomendado |

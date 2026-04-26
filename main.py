@@ -1,12 +1,17 @@
 import sys
+import faulthandler
+import traceback
 from pathlib import Path
 from dotenv import load_dotenv
+
+faulthandler.enable()
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
 from rich.table import Table
 
 from pipeline import SDDPipeline
+from cli.prompts import FOCOS_DISPONIVEIS, prompt_list, prompt_menu_choice
 
 load_dotenv()
 console = Console()
@@ -18,17 +23,6 @@ SECOES_PADRAO = [
     "otimizacoes", "conclusao", "referencias",
 ]
 
-FOCOS_DISPONIVEIS = [
-    "comparação geral",
-    "performance / throughput",
-    "custo",
-    "migração",
-    "integração",
-    "segurança",
-    "hardware limitado / edge",
-    "quantização / modelos locais",
-]
-
 
 def parse_main_flags(args: list[str]) -> dict:
     refresh_search = "--refresh-search" in args
@@ -36,59 +30,39 @@ def parse_main_flags(args: list[str]) -> dict:
 
 
 def perguntar_foco() -> str:
-    console.print("\n[dim]Focos disponíveis:[/dim]")
-    for menu_index, foco_disponivel in enumerate(FOCOS_DISPONIVEIS, MENU_INDEX_START):
-        console.print(f"  [cyan]{menu_index}.[/cyan] {foco_disponivel}")
-
-    escolha = Prompt.ask(
-        "\n[bold]Foco da pesquisa[/bold] [dim](número ou texto livre, enter para padrão)[/dim]",
-        default="",
+    return prompt_menu_choice(
+        console,
+        FOCOS_DISPONIVEIS,
+        "Foco da pesquisa",
+        default="comparação geral",
     )
-
-    if not escolha.strip():
-        return "comparação geral"
-
-    if escolha.strip().isdigit():
-        foco_index = int(escolha.strip()) - MENU_INDEX_START
-        if 0 <= foco_index < len(FOCOS_DISPONIVEIS):
-            return FOCOS_DISPONIVEIS[foco_index]
-
-    return escolha.strip()
 
 
 def perguntar_questoes() -> list[str]:
-    console.print("\n[dim]Digite perguntas que o artigo DEVE responder.")
-    console.print("[dim]Seja específico — o modelo vai usar isso diretamente.")
-    console.print("[dim]Enter vazio para terminar.\n")
-    console.print("[dim]Exemplos:[/dim]")
-    console.print("[dim]  → como configurar modo rootless?[/dim]")
-    console.print("[dim]  → docker-compose funciona sem mudanças?[/dim]")
-    console.print("[dim]  → qual tem menor uso de RAM em idle?[/dim]\n")
-
-    perguntas = []
-    pergunta_index = MENU_INDEX_START
-    while True:
-        pergunta = Prompt.ask(f"  [cyan]Pergunta {pergunta_index}[/cyan]", default="")
-        if not pergunta.strip():
-            break
-        perguntas.append(pergunta.strip())
-        pergunta_index += 1
-    return perguntas
+    return prompt_list(
+        console,
+        [
+            "[dim]Digite perguntas que o artigo DEVE responder.",
+            "[dim]Seja específico — o modelo vai usar isso diretamente.",
+            "[dim]Enter vazio para terminar.\n",
+            "[dim]Exemplos:[/dim]",
+            "[dim]  → como configurar modo rootless?[/dim]",
+            "[dim]  → docker-compose funciona sem mudanças?[/dim]",
+            "[dim]  → qual tem menor uso de RAM em idle?[/dim]\n",
+        ],
+        "Pergunta",
+    )
 
 
 def coletar_validacoes() -> list[str]:
-    console.print("\n[dim]Digite critérios que o artigo DEVE conter.")
-    console.print("[dim]Enter vazio para terminar.\n")
-
-    criterios = []
-    criterio_index = MENU_INDEX_START
-    while True:
-        criterio = Prompt.ask(f"  [cyan]Critério {criterio_index}[/cyan]", default="")
-        if not criterio.strip():
-            break
-        criterios.append(criterio.strip())
-        criterio_index += 1
-    return criterios
+    return prompt_list(
+        console,
+        [
+            "[dim]Digite critérios que o artigo DEVE conter.",
+            "[dim]Enter vazio para terminar.\n",
+        ],
+        "Critério",
+    )
 
 
 def perguntar_pesquisa_existente(pipeline) -> str | None:
@@ -263,7 +237,20 @@ def main():
     if cli_flags["refresh_search"]:
         console.print("[yellow]Modo refresh-search ativo: ignorando cache de busca nesta execução.[/yellow]")
 
-    pipeline    = SDDPipeline(verbosity="minimal")
+    try:
+        pipeline = SDDPipeline(verbosity="minimal")
+    except BaseException as error:
+        if isinstance(error, KeyboardInterrupt):
+            console.print("\n[dim]Cancelado.[/dim]")
+            sys.exit(0)
+        console.print()
+        console.print(Panel.fit(
+            f"[bold red]Falha ao inicializar pipeline: {type(error).__name__}[/bold red]\n"
+            f"[white]{error}[/white]\n\n"
+            f"[dim]{traceback.format_exc()}[/dim]",
+            border_style="red",
+        ))
+        sys.exit(1)
 
     # Ask if user wants to reuse existing research
     existing_research = None
@@ -284,11 +271,15 @@ def main():
             skip_search=skip_search,
             existing_research=existing_research,
         )
-    except Exception as error:
+    except BaseException as error:
+        if isinstance(error, KeyboardInterrupt):
+            console.print("\n[dim]Cancelado.[/dim]")
+            sys.exit(0)
         console.print()
         console.print(Panel.fit(
-            f"[bold red]Falha na execução do pipeline[/bold red]\n"
+            f"[bold red]Falha: {type(error).__name__}[/bold red]\n"
             f"[white]{error}[/white]\n\n"
+            f"[dim]{traceback.format_exc()}[/dim]\n"
             f"[dim]Dica: configure fallback em .env (cloud/local) para evitar rate-limit.[/dim]",
             border_style="red",
         ))
@@ -298,4 +289,16 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException as error:
+        console.print()
+        console.print(Panel.fit(
+            f"[bold red]Erro não tratado: {type(error).__name__}[/bold red]\n"
+            f"[white]{error}[/white]\n\n"
+            f"[dim]{traceback.format_exc()}[/dim]",
+            border_style="red",
+        ))
+        sys.exit(1)

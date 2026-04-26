@@ -170,6 +170,8 @@ class PipelineLogger:
         elapsed: float = None,
         source: str = "",
         scrape_status: str = "",
+        phase: str = "",
+        preview: str = "",
     ):
         """Log URL found during research with scraping status and elapsed time.
         
@@ -193,13 +195,20 @@ class PipelineLogger:
             "ok": "[green]✓[/green]",
             "scrape_failed": "[yellow]⚠[/yellow]",
             "skipped": "[dim]⊘[/dim]",
+            "discovered": "[cyan]•[/cyan]",
+            "snippet_fallback": "[yellow]↪[/yellow]",
         }.get(status, "[cyan]•[/cyan]")
-        
+
         title_str = f" — {title[:60]}" if title else ""
         elapsed_str = f" ({elapsed:.1f}s)" if elapsed else ""
+        phase_str = f" [dim]{phase}[/dim]" if phase else ""
         if self.is_detailed():
-            self.console.print(f"   {status_indicator} [cyan]{url}[/cyan]{title_str}{elapsed_str}")
-        
+            self.console.print(
+                f"   {status_indicator} [cyan]{url}[/cyan]{title_str}{phase_str}{elapsed_str}"
+            )
+            if preview:
+                self.console.print(f"      [dim]↳ {preview[:100]}[/dim]")
+
         self.event_log.log_event("url_found", {
             "url": url,
             "title": title,
@@ -207,6 +216,8 @@ class PipelineLogger:
             "elapsed_seconds": elapsed,
             "source": source,
             "scrape_status": scrape_status,
+            "phase": phase,
+            "preview": preview[:100] if preview else "",
         })
 
     def search_done(self, tool: str, n_results: int, n_queries: int):

@@ -1,6 +1,6 @@
 """
-Monitor de eventos em tempo real do pipeline SDD.
-Lê o arquivo pipeline_events.jsonl e mostra o que está acontecendo.
+Monitor único de eventos do pipeline SDD.
+Substitui os antigos `watch_events.py` e `tail_events.py`.
 
 Uso:
   python3 watch_events.py          # Mostra todos os eventos (one-shot)
@@ -9,6 +9,10 @@ Uso:
   python3 watch_events.py --watch    # Modo watch (atualiza a cada 2s)
   python3 watch_events.py --watch=1  # Watch com intervalo customizado (segundos)
   python3 watch_events.py --watch url_found  # Watch filtrando por tipo
+  python3 watch_events.py --follow            # Modo tail -f (stream contínuo)
+  python3 watch_events.py --follow url_found  # Follow filtrando por tipo
+  python3 watch_events.py --follow --detailed # Follow com JSON completo
+  python3 watch_events.py --log-file=output/pipeline_events.jsonl
   python3 watch_events.py --help     # Mostra essa ajuda
 """
 
@@ -19,6 +23,28 @@ import os
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+
+
+def infer_url_phase(event: dict) -> str:
+    """Infer URL phase for backward compatibility with old event schema."""
+    phase = event.get("phase")
+    if phase:
+        return phase
+    status = event.get("status", "")
+    elapsed = event.get("elapsed_seconds")
+    if status == "scrape_failed":
+        return "scrape_failed"
+    if status == "skipped":
+        return "filtered_skip"
+    if status == "ok" and elapsed:
+        return "scrape_ok"
+    if status == "ok":
+        return "search_discovered"
+    if status == "snippet_fallback":
+        return "snippet_fallback"
+    if status == "discovered":
+        return "search_discovered"
+    return ""
 
 
 def read_events(log_file: str = "output/pipeline_events.jsonl"):
@@ -92,19 +118,26 @@ def print_event(event: dict):
         elapsed = event.get("elapsed_seconds", None)
         source = event.get("source", "")
         scrape_status = event.get("scrape_status", "")
+        phase = infer_url_phase(event)
+        preview = (event.get("preview", "") or "").replace("\n", " ").strip()[:100]
 
         status_emoji = {
             "ok": "✓",
             "scrape_failed": "⚠",
-            "skipped": "⊘"
+            "skipped": "⊘",
+            "discovered": "•",
+            "snippet_fallback": "↪",
         }.get(status, "•")
 
         elapsed_str = f" ({elapsed:.1f}s)" if elapsed else ""
         title_str = f" — {title}" if title else ""
         source_str = f" [src={source}]" if source else ""
         scrape_status_str = f" [status={scrape_status}]" if scrape_status and scrape_status != "ok" else ""
+        phase_str = f" [phase={phase}]" if phase else ""
 
-        print(f" {status_emoji} {url}{title_str}{source_str}{scrape_status_str}{elapsed_str}")
+        print(f" {status_emoji} {url}{title_str}{source_str}{phase_str}{scrape_status_str}{elapsed_str}")
+        if preview:
+            print(f"    ↳ {preview}")
 
     elif event_type == "search_query":
         query = event.get("query", "?")
@@ -158,6 +191,13 @@ def print_event(event: dict):
         elapsed_str = f" ({elapsed:.1f}s)" if elapsed else ""
         print(f" 🔄 Reanalyze: {reason} | {urls_count} URLs{elapsed_str}")
 
+    elif event_type == "writer_heartbeat":
+        iteration = event.get("iteration", "?")
+        elapsed = event.get("elapsed_seconds", 0)
+        count = event.get("heartbeat_count", 0)
+        interval = event.get("interval_seconds", "?")
+        print(f" 💓 Writer it={iteration} aguardando LLM... {elapsed:.1f}s (hb #{count} / {interval}s)")
+
     elif event_type == "enrichment_via_chroma":
         tool = event.get("tool", "?")
         enrichment_type = event.get("enrichment_type", "?")
@@ -188,9 +228,21 @@ def print_event(event: dict):
     elif event_type == "content_extraction_failed":
         url = event.get("url", "?")
         error = event.get("error", "unknown")
+        error_detail = event.get("error_detail", "")
         elapsed = event.get("elapsed", "?")
         print(f" ✗ FALHOU: {url}")
         print(f"    → Erro: {error} ({elapsed}s)")
+        if error_detail:
+            print(f"    → Detalhe: {error_detail[:180]}")
+
+    elif event_type == "html_debug_saved":
+        tool = event.get("tool", "?")
+        status = event.get("status", "?")
+        path = event.get("path", "?")
+        html_chars = event.get("html_chars", 0)
+        snippet_chars = event.get("snippet_chars", 0)
+        print(f" 🧩 HTML debug [{tool}] status={status}")
+        print(f"    → {path} (html={html_chars} chars, snippet={snippet_chars} chars)")
 
     else:
         details = {key: value for key, value in event.items() if key not in ["timestamp", "type"]}
@@ -198,6 +250,14 @@ def print_event(event: dict):
             print(f" {details}")
         else:
             print()
+
+
+def print_event_follow(event: dict, detailed: bool = False):
+    """Print event for follow mode; supports detailed JSON output."""
+    if detailed:
+        print(json.dumps(event, ensure_ascii=False, indent=2))
+        return
+    print_event(event)
 
 
 def clear_screen():
@@ -251,9 +311,31 @@ def stats_summary(events: list):
     for event_type, count in sorted(counts.items(), key=lambda type_count_pair: type_count_pair[1], reverse=True):
         print(f"  {event_type:20}: {count:3} evento(s)")
 
-    urls_ok = sum(1 for event_item in events if event_item.get("type") == "url_found" and event_item.get("status") == "ok")
-    urls_failed = sum(1 for event_item in events if event_item.get("type") == "url_found" and event_item.get("status") == "scrape_failed")
-    urls_skipped = sum(1 for event_item in events if event_item.get("type") == "url_found" and event_item.get("status") == "skipped")
+    urls_discovered = sum(
+        1
+        for event_item in events
+        if event_item.get("type") == "url_found" and infer_url_phase(event_item) == "search_discovered"
+    )
+    urls_ok = sum(
+        1
+        for event_item in events
+        if event_item.get("type") == "url_found" and infer_url_phase(event_item) == "scrape_ok"
+    )
+    urls_failed = sum(
+        1
+        for event_item in events
+        if event_item.get("type") == "url_found" and infer_url_phase(event_item) == "scrape_failed"
+    )
+    urls_skipped = sum(
+        1
+        for event_item in events
+        if event_item.get("type") == "url_found" and infer_url_phase(event_item) == "filtered_skip"
+    )
+    urls_snippet = sum(
+        1
+        for event_item in events
+        if event_item.get("type") == "url_found" and infer_url_phase(event_item) == "snippet_fallback"
+    )
     cloudflare_challenges = sum(
         1
         for event_item in events
@@ -269,8 +351,10 @@ def stats_summary(events: list):
     )
 
     print(f"\n🔗 URLs encontradas:")
-    print(f"  ✓ OK (extraído): {urls_ok}")
-    print(f"  ⚠ Falhado (fallback): {urls_failed}")
+    print(f"  • Descobertas na busca: {urls_discovered}")
+    print(f"  ✓ Scrape OK (conteúdo extraído): {urls_ok}")
+    print(f"  ↪ Fallback por snippet (sem scrape): {urls_snippet}")
+    print(f"  ⚠ Falha de scrape: {urls_failed}")
     print(f"  ⊘ Pulado: {urls_skipped}")
     print(f"\n🛡️ Telemetria Cloudflare/Browser:")
     print(f"  ☁️ Challenge detectado: {cloudflare_challenges}")
@@ -292,8 +376,9 @@ def stats_summary(events: list):
     chroma_queries = sum(1 for e in events if e.get("type") == "chroma_query")
     weak_queries = sum(1 for e in events if e.get("type") == "weak_search_query")
     enrichments = sum(1 for e in events if e.get("type") in ["enrichment_via_chroma", "reanalyze_urls"])
+    html_debug_saves = sum(1 for e in events if e.get("type") == "html_debug_saved")
 
-    if chroma_saves or chroma_queries or weak_queries or enrichments:
+    if chroma_saves or chroma_queries or weak_queries or enrichments or html_debug_saves:
         print(f"\n🗄️  Chroma Vector Database:")
         if chroma_saves:
             print(f"  💾 Saves: {chroma_saves}")
@@ -303,6 +388,8 @@ def stats_summary(events: list):
             print(f"  ⚠️  Weak searches: {weak_queries}")
         if enrichments:
             print(f"  ⚡ Smart enrichments: {enrichments}")
+        if html_debug_saves:
+            print(f"  🧩 HTML debug saves: {html_debug_saves}")
 
     if events:
         first_time = datetime.fromisoformat(events[0].get("timestamp", ""))
@@ -369,17 +456,27 @@ def watch_mode(log_file: str, watch_interval: int, filter_type: str = None, tail
     print(f"👀 Modo watch ativado (atualiza a cada {watch_interval}s)")
     print(f"   Pressione Ctrl+C para sair\n")
     
-    last_count = 0
+    last_signature = None
+    rendered_once = False
+    path = Path(log_file)
     
     try:
         while True:
             events = read_events(log_file)
-            
-            if len(events) != last_count:
+            file_size = path.stat().st_size if path.exists() else -1
+            last_ts = events[-1].get("timestamp", "") if events else ""
+            signature = (len(events), file_size, last_ts)
+
+            if not rendered_once or signature != last_signature:
                 clear_screen()
                 draw_header(watch_interval=watch_interval)
-                display_events(events, filter_type=filter_type, tail=tail)
-                last_count = len(events)
+                if not events:
+                    print(f"\n❌ Nenhum evento encontrado em {log_file}")
+                    print("   Aguardando novos eventos...\n")
+                else:
+                    display_events(events, filter_type=filter_type, tail=tail)
+                last_signature = signature
+                rendered_once = True
             
             time.sleep(watch_interval)
     
@@ -399,6 +496,12 @@ def parse_watch_interval(arg: str):
         return "invalid"
 
 
+def parse_follow_mode(arg: str) -> bool | None:
+    if arg == "--follow":
+        return True
+    return None
+
+
 def parse_tail_value(arg: str):
     if not arg.startswith("--tail"):
         return None
@@ -412,6 +515,16 @@ def parse_tail_value(arg: str):
         return "invalid"
 
 
+def parse_log_file(arg: str) -> str | None:
+    if not arg.startswith("--log-file="):
+        return None
+    value = arg.split("=", 1)[1].strip()
+    if not value:
+        print("❌ --log-file não pode ser vazio")
+        return "invalid"
+    return value
+
+
 def parse_cli_args(args: list[str]):
     if args and args[0] == "--help":
         return {"show_help": True}
@@ -421,11 +534,18 @@ def parse_cli_args(args: list[str]):
         "filter_type": None,
         "tail": None,
         "watch_interval": None,
+        "follow_mode": False,
+        "detailed": False,
         "show_help": False,
     }
-    positional_args = []
+    positional_args: list[str] = []
 
     for arg in args:
+        follow_mode = parse_follow_mode(arg)
+        if follow_mode is not None:
+            parsed["follow_mode"] = follow_mode
+            continue
+
         watch_interval = parse_watch_interval(arg)
         if watch_interval == "invalid":
             return None
@@ -440,17 +560,69 @@ def parse_cli_args(args: list[str]):
             parsed["tail"] = tail_value
             continue
 
+        log_file_value = parse_log_file(arg)
+        if log_file_value == "invalid":
+            return None
+        if log_file_value is not None:
+            parsed["log_file"] = log_file_value
+            continue
+
+        if arg == "--detailed":
+            parsed["detailed"] = True
+            continue
+
         if not arg.startswith("--"):
             positional_args.append(arg)
 
     if positional_args:
-        if parsed["watch_interval"] is None:
-            parsed["filter_type"] = positional_args[0]
-        elif len(positional_args) > 1:
-            parsed["filter_type"] = positional_args[1]
-        else:
-            parsed["filter_type"] = positional_args[0]
+        parsed["filter_type"] = positional_args[0]
+
+    if parsed["follow_mode"] and parsed["watch_interval"] is not None:
+        print("❌ Use apenas um modo contínuo: --watch OU --follow")
+        return None
     return parsed
+
+
+def follow_mode(log_file: str, filter_type: str = None, detailed: bool = False):
+    """Tail -f style streaming for event JSONL."""
+    path = Path(log_file)
+    print(f"👀 Follow mode: {log_file}")
+    print("   Pressione Ctrl+C para sair\n")
+    if filter_type:
+        print(f"🔍 Filtrando por: {filter_type}\n")
+
+    last_pos = 0
+    announced_wait = False
+
+    try:
+        while True:
+            if not path.exists():
+                if not announced_wait:
+                    print(f"⏳ Aguardando criação de {log_file}...")
+                    announced_wait = True
+                time.sleep(0.3)
+                continue
+
+            announced_wait = False
+            current_size = path.stat().st_size
+            if current_size < last_pos:
+                # arquivo truncado/rotacionado: reinicia leitura
+                last_pos = 0
+
+            with open(path, "r") as f:
+                f.seek(last_pos)
+                for line in f:
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if filter_type and event.get("type") != filter_type:
+                        continue
+                    print_event_follow(event, detailed=detailed)
+                last_pos = f.tell()
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        print("\n\n👋 Follow finalizado")
 
 
 def main():
@@ -481,6 +653,14 @@ def main():
             parsed_args["watch_interval"],
             filter_type=parsed_args["filter_type"],
             tail=parsed_args["tail"],
+        )
+        return
+
+    if parsed_args["follow_mode"]:
+        follow_mode(
+            parsed_args["log_file"],
+            filter_type=parsed_args["filter_type"],
+            detailed=parsed_args["detailed"],
         )
         return
 

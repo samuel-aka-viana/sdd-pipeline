@@ -6,12 +6,20 @@ Priority:
 2. Original ScraperTool (fallback if crawl4ai not installed or fails)
 """
 import logging
+import json
+import time
+from pathlib import Path
+from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
 
 class _ScraperWithFallback:
     """Wrapper that falls back from Crawl4AI to ScraperTool on repeated failures."""
+
+    DOMAIN_FAILURE_THRESHOLD = 3
+    DOMAIN_COOLDOWN_SECONDS = 600
+    DOMAIN_STATS_PATH = Path(".memory/scrape_domain_stats.json")
 
     def __init__(self, crawl4ai_scraper, max_chars: int, timeout: int, compliant_mode: bool, max_retries: int):
         self.crawl4ai_scraper = crawl4ai_scraper
@@ -20,30 +28,52 @@ class _ScraperWithFallback:
         self.timeout = timeout
         self.compliant_mode = compliant_mode
         self.max_retries = max_retries
-        self.crawl4ai_failure_count = 0
-        self.use_fallback = False
+        self.domain_failures: dict[str, int] = {}
+        self.domain_fallback_until: dict[str, float] = {}
+        self.domain_stats = self._load_domain_stats()
+        self._write_counter = 0
 
     def extract_text(self, url: str) -> dict:
-        """Try Crawl4AI first; if it fails 3+ times, use fallback."""
-        if self.use_fallback:
-            return self._get_fallback_scraper().extract_text(url)
+        """Try Crawl4AI first; fallback is domain-scoped with cooldown."""
+        domain = self._extract_domain(url)
+        now = time.time()
+        in_domain_cooldown = self.domain_fallback_until.get(domain, 0) > now
+
+        if in_domain_cooldown:
+            result = self._get_fallback_scraper().extract_text(url)
+            self._record_domain_result(domain, result, used_fallback=True)
+            return result
 
         result = self.crawl4ai_scraper.extract_text(url)
+        status = result.get("status")
+        failed = status in (
+            "crawl4ai_error",
+            "timeout",
+            "http_429",
+            "http_403",
+            "http_503",
+            "parse_error",
+            "low_quality_content",
+        )
 
-        # Track failures
-        if result.get("status") in ("crawl4ai_error", "timeout", "http_429"):
-            self.crawl4ai_failure_count += 1
-            if self.crawl4ai_failure_count >= 3:
+        if failed:
+            self.domain_failures[domain] = self.domain_failures.get(domain, 0) + 1
+            if self.domain_failures[domain] >= self.DOMAIN_FAILURE_THRESHOLD:
+                self.domain_fallback_until[domain] = now + self.DOMAIN_COOLDOWN_SECONDS
                 log.warning(
-                    f"Crawl4AI failed 3+ times, switching to fallback ScraperTool. "
-                    f"(Current failure: {url})"
+                    f"Crawl4AI failed {self.DOMAIN_FAILURE_THRESHOLD}+ times for {domain}; "
+                    f"fallback enabled for {self.DOMAIN_COOLDOWN_SECONDS}s. "
+                    f"(Current failure URL: {url})"
                 )
-                self.use_fallback = True
-                return self._get_fallback_scraper().extract_text(url)
         else:
-            # Reset count on success
-            self.crawl4ai_failure_count = 0
+            self.domain_failures[domain] = 0
 
+        if failed and self._should_force_fallback(domain):
+            fallback_result = self._get_fallback_scraper().extract_text(url)
+            self._record_domain_result(domain, fallback_result, used_fallback=True)
+            return fallback_result
+
+        self._record_domain_result(domain, result, used_fallback=False)
         return result
 
     def _get_fallback_scraper(self):
@@ -62,6 +92,61 @@ class _ScraperWithFallback:
                 log.error("Fallback ScraperTool not available")
                 raise
         return self.fallback_scraper
+
+    def _extract_domain(self, url: str) -> str:
+        try:
+            return (urlparse(url).netloc or "unknown").lower()
+        except Exception:
+            return "unknown"
+
+    def _should_force_fallback(self, domain: str) -> bool:
+        return self.domain_fallback_until.get(domain, 0) > time.time()
+
+    def _record_domain_result(self, domain: str, result: dict, used_fallback: bool):
+        status = result.get("status", "unknown")
+        ok = status == "ok"
+        stats = self.domain_stats.setdefault(
+            domain,
+            {
+                "attempts": 0,
+                "success": 0,
+                "fail": 0,
+                "fallback_attempts": 0,
+                "statuses": {},
+                "last_updated": 0.0,
+            },
+        )
+        stats["attempts"] += 1
+        stats["success"] += int(ok)
+        stats["fail"] += int(not ok)
+        stats["fallback_attempts"] += int(used_fallback)
+        statuses = stats.setdefault("statuses", {})
+        statuses[status] = int(statuses.get(status, 0)) + 1
+        stats["last_updated"] = time.time()
+        self._write_counter += 1
+        should_flush = (self._write_counter % 10 == 0) or used_fallback or (not ok)
+        if should_flush:
+            self._save_domain_stats()
+
+    def _load_domain_stats(self) -> dict:
+        path = self.DOMAIN_STATS_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            return {}
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+    def _save_domain_stats(self):
+        path = self.DOMAIN_STATS_PATH
+        try:
+            payload = json.dumps(self.domain_stats, ensure_ascii=False, indent=2)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(payload, encoding="utf-8")
+        except Exception:
+            # Non-fatal telemetry persistence
+            return
 
 try:
     from tools.scraper_crawl4ai import ScraperCrawl4AI

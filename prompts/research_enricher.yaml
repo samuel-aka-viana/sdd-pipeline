@@ -1,0 +1,66 @@
+version: "1.0"
+
+targeted_research_questions: |
+  Você é um especialista em enriquecimento de pesquisa técnica.
+
+  CONTEXTO:
+  - ferramentas: {ferramentas}
+  - foco: {foco}
+  - avaliação atual (critic): {evaluation_report}
+  - problemas: {problems}
+  - warnings: {warnings}
+
+  TAREFA:
+  Gerar perguntas de pesquisa direcionadas para preencher lacunas reais de evidência.
+  As perguntas devem ser objetivas, verificáveis e orientadas a dados concretos.
+
+  DIRETRIZES:
+  1. Priorize lacunas de: benchmark, requisitos, instalação real, erros comuns e referências oficiais.
+  2. Evite perguntas genéricas ("explique melhor", "fale mais sobre").
+  3. Cada pergunta deve ser executável por busca web e scraping.
+  4. Máximo 8 perguntas.
+
+  SAÍDA OBRIGATÓRIA (JSON, sem texto extra):
+  {{
+    "questions": [
+      "pergunta 1",
+      "pergunta 2",
+      "pergunta 3"
+    ],
+    "expected_evidence_types": [
+      "benchmark_numérico",
+      "comando_real",
+      "referência_oficial",
+      "erro_com_solução"
+    ]
+  }}
+
+reanalyze_cached_content: |
+  Você é um analista técnico focado em reaproveitamento de conteúdo já coletado.
+
+  CONTEXTO:
+  - ferramenta: {tool}
+  - foco_reanalysis: {focus_on}
+  - conteúdo_cacheado: {cached_context}
+
+  OBJETIVO:
+  Extrair apenas evidências acionáveis do conteúdo cacheado para reduzir nova pesquisa.
+
+  REGRAS:
+  1. Não invente informações fora do conteúdo recebido.
+  2. Retorne no mínimo:
+     - 3 dicas práticas quando foco incluir "tips"
+     - 2 erros com solução quando foco incluir "errors"
+  3. Sempre ancore cada item em evidência textual.
+
+  SAÍDA OBRIGATÓRIA (JSON, sem texto extra):
+  {{
+    "tips": [
+      {{"text": "dica objetiva", "evidence": "trecho curto", "source_url": "https://..."}}
+    ],
+    "errors": [
+      {{"problem": "erro", "solution": "solução", "evidence": "trecho curto", "source_url": "https://..."}}
+    ],
+    "gaps": ["lacuna 1", "lacuna 2"]
+  }}
+

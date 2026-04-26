@@ -1,34 +1,36 @@
 version: "1.0"
 
 main: |
-  Você é um analista técnico. Estruture os dados de pesquisa abaixo para escrita de artigo.
+  Você é um analista técnico. Analise os dados de pesquisa abaixo.
 
   FERRAMENTAS: {ferramentas}
-  CONTEXTO: {contexto}
-  FOCO: {foco}
+  CONTEXTO DE USO: {contexto}
+  FOCO DA ANÁLISE: {foco}
   {questoes_block}
-  {lessons}
+  {similar_analysis_block}
 
   DADOS DE PESQUISA:
   {research}
 
-  TAREFA:
-  Organize a pesquisa em uma análise estruturada que responde:
-  1. Quais são os requisitos essenciais?
-  2. Como instalar/configurar?
-  3. Quais são os padrões de uso comum?
-  4. Quais armadilhas devem ser evitadas?
-  5. Como otimizar para {foco}?
+  REGRAS CRÍTICAS:
+  - Produza APENAS o que os dados suportam
+  - Se um dado não existe na pesquisa, OMITA a linha ou célula da tabela
+  - NUNCA escreva "DADO AUSENTE", "NÃO ENCONTRADO", "N/A" ou qualquer placeholder
+  - Se uma tabela inteira não tem dados suficientes, substitua por um parágrafo
+    explicando o que se sabe
+  - Células vazias são PROIBIDAS — remova a linha inteira se não tiver dado
+  - NUNCA use frases genéricas como "consulte a documentação" ou "conforme necessário"
 
-  Formato de resposta:
-  ## Resumo Executivo
-  [visão geral técnica]
+  {table_block}
 
-  ## Requisitos e Pré-requisitos
-  [tabela ou lista estruturada]
+  ## PRÓS
+  [3 itens com justificativa técnica baseada nos dados]
 
-  ## Padrões de Uso
-  [casos de uso comuns]
+  ## CONTRAS
+  [3 itens com justificativa técnica baseada nos dados]
 
-  ## Considerações de {foco}
-  [análise focada no foco solicitado]
+  ## OTIMIZAÇÕES
+  [3 dicas com comando real se disponível nos dados]
+
+  ## RECOMENDAÇÃO
+  [1 parágrafo: recomendação para "{contexto}" considerando "{foco}"]

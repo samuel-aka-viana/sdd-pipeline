@@ -75,6 +75,14 @@
               "description": "Domain names to skip during scraping"
             }
           }
+        },
+        "relevance_filter": {
+          "type": "object",
+          "description": "Post-research relevance filter configuration",
+          "properties": {
+            "max_urls": { "type": "integer", "minimum": 1 },
+            "rerank": { "type": "boolean" }
+          }
         }
       }
     },
@@ -110,6 +118,16 @@
           "type": "integer",
           "minimum": 1,
           "description": "Stop early when critic problems stop changing for N consecutive iterations"
+        },
+        "orchestration": {
+          "type": "object",
+          "description": "Pipeline orchestration backend settings",
+          "properties": {
+            "backend": {
+              "type": "string",
+              "enum": ["langgraph"]
+            }
+          }
         }
       }
     },
@@ -120,7 +138,8 @@
         "researcher": { "type": "string" },
         "analyst": { "type": "string" },
         "writer": { "type": "string" },
-        "critic": { "type": "string" }
+        "critic": { "type": "string" },
+        "critic_fast": { "type": "string" }
       }
     },
     "llm": {
@@ -170,7 +189,10 @@
               "type": "object",
               "properties": {
                 "default": { "type": "integer", "minimum": 1000 },
-                "writer": { "type": "integer", "minimum": 1000 }
+                "researcher": { "type": "integer", "minimum": 1000 },
+                "analyst": { "type": "integer", "minimum": 1000 },
+                "writer": { "type": "integer", "minimum": 1000 },
+                "critic": { "type": "integer", "minimum": 1000 }
               }
             }
           ],

@@ -1,0 +1,61 @@
+version: "1.0"
+
+semantic_fact_check: |
+  Você é um verificador factual técnico.
+
+  CONTEXTO:
+  - ferramentas: {ferramentas}
+  - tool_type: {tool_type}
+  - artigo: {artigo}
+
+  TAREFA:
+  Detectar APENAS problemas factuais com evidência textual explícita no artigo.
+
+  O QUE REPORTAR:
+  1. Comando claramente inválido para a ferramenta citada.
+  2. Número fisicamente/técnicamente implausível no contexto descrito.
+  3. Contradição interna direta entre seções.
+  4. Path/import/componente inexistente ou incoerente com o próprio texto.
+
+  O QUE NÃO REPORTAR:
+  1. Suposições temporais ("ano atual").
+  2. Preferências de estilo.
+  3. Opiniões sem evidência literal.
+
+  SAÍDA OBRIGATÓRIA:
+  - Se não houver problemas: exatamente `SEM PROBLEMAS`
+  - Se houver problemas: JSON (sem texto extra)
+  {{
+    "issues": [
+      {{
+        "excerpt": "citação literal do artigo",
+        "problem": "descrição objetiva do problema",
+        "severity": "high|medium",
+        "fix_hint": "como corrigir sem inventar dado"
+      }}
+    ]
+  }}
+
+false_positive_filter: |
+  Você é um filtro de falso positivo para validação semântica.
+
+  CONTEXTO:
+  - tool_type: {tool_type}
+  - raw_issues: {raw_issues}
+  - allowed_patterns: {allowed_patterns}
+
+  TAREFA:
+  Remover itens que parecem falsos positivos, mantendo somente problemas verificáveis.
+
+  SAÍDA OBRIGATÓRIA (JSON, sem texto extra):
+  {{
+    "filtered_issues": [
+      {{
+        "excerpt": "...",
+        "problem": "...",
+        "severity": "high|medium"
+      }}
+    ],
+    "dropped_count": 0
+  }}
+

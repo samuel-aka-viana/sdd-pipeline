@@ -1,41 +1,82 @@
+import logging
 import os
-from dataclasses import dataclass
+from pathlib import Path
 
 import requests
 import yaml
 from httpx import TimeoutException
-from pathlib import Path
+from pydantic import BaseModel
+from typing import TypeVar
+
+from llm.circuit_breaker import (
+    CircuitBreakerRegistry,
+    CircuitOpenError,
+    classify_http_failure,
+)
+from llm.fallback import try_provider
+from llm.provider_config import LLMRuntimeConfig, ProviderConfigResolver
+from llm.structured import (
+    StructuredOutputError,
+    build_repair_prompt,
+    build_schema_hint,
+    parse_response,
+)
+from llm.token_counter import count_tokens
+
+T = TypeVar("T", bound=BaseModel)
+
+logger = logging.getLogger(__name__)
 
 
-@dataclass
 class LLMResponse:
-    response: str
-
-
-@dataclass
-class LLMRuntimeConfig:
-    provider_mode: str
-    provider_engine: str
-    provider_config: dict
-    models: dict[str, str]
+    def __init__(self, response: str):
+        self.response = response
 
 
 class LLMClient:
-    ROLES = ("researcher", "analyst", "writer", "critic")
-    PROVIDER_ALIASES = {
-        "ollama": "ollama_local",
-        "local": "ollama_local",
-        "ollama_local": "ollama_local",
-        "ollama_cloud": "ollama_cloud",
-        "cloud": "ollama_cloud",
-        "openrouter": "openrouter_free",
-        "openrouter_free": "openrouter_free",
-    }
-
     def __init__(self, spec_path: str = "spec/article_spec.yaml"):
         self.spec = yaml.safe_load(Path(spec_path).read_text())
-        self.runtime = self.build_runtime()
+        self._resolver = ProviderConfigResolver(self.spec)
+        self.runtime: LLMRuntimeConfig = self._resolver.build_runtime()
         self.provider = self.runtime.provider_engine
+        self.circuit_breaker = CircuitBreakerRegistry()
+
+    def generate_cached(
+        self,
+        *,
+        role: str,
+        model: str,
+        stable_prefix: str,
+        volatile_suffix: str,
+        temperature: float,
+        num_ctx: int | None = None,
+        timeout: int | None = None,
+    ) -> LLMResponse:
+        """Variante de generate com cache breakpoint entre prefix e suffix.
+
+        OpenRouter: usa cache_control=ephemeral no primeiro segmento.
+        Ollama: concatena (KV cache automático em prefix byte-idêntico).
+        """
+        if not volatile_suffix:
+            return self.generate(
+                role=role, model=model, prompt=stable_prefix,
+                temperature=temperature, num_ctx=num_ctx, timeout=timeout,
+            )
+        if self.runtime.provider_mode == "openrouter_free":
+            result = try_provider(
+                lambda: self.generate_openrouter(
+                    role=role, model=model, prompt=stable_prefix,
+                    temperature=temperature, timeout=timeout,
+                    volatile_suffix=volatile_suffix,
+                ),
+                provider_id="openrouter", role=role,
+            )
+            if result:
+                return result
+        return self.generate(
+            role=role, model=model, prompt=stable_prefix + volatile_suffix,
+            temperature=temperature, num_ctx=num_ctx, timeout=timeout,
+        )
 
     def generate(
         self,
@@ -47,83 +88,98 @@ class LLMClient:
         num_ctx: int | None = None,
         timeout: int | None = None,
     ) -> LLMResponse:
-        errors_by_provider = []
+        errors_by_provider: list[str] = []
 
         if self.runtime.provider_mode == "openrouter_free":
-            try:
-                return self.generate_openrouter(
-                    role=role,
-                    model=model,
-                    prompt=prompt,
-                    temperature=temperature,
-                    timeout=timeout,
-                )
-            except (RuntimeError, TimeoutException) as openrouter_error:
-                errors_by_provider.append(f"openrouter: {openrouter_error}")
-
-            fallback_from_cloud = self.try_ollama_cloud_fallback(
-                role=role,
-                prompt=prompt,
-                temperature=temperature,
-                num_ctx=num_ctx,
-                timeout=timeout,
-                errors_by_provider=errors_by_provider,
+            result = try_provider(
+                lambda: self.generate_openrouter(
+                    role=role, model=model, prompt=prompt,
+                    temperature=temperature, timeout=timeout,
+                ),
+                provider_id="openrouter", role=role, errors=errors_by_provider,
             )
-            if fallback_from_cloud:
-                return fallback_from_cloud
+            if result:
+                return result
 
-            fallback_from_local = self.try_ollama_local_fallback(
-                role=role,
-                primary_model=model,
-                prompt=prompt,
-                temperature=temperature,
-                num_ctx=num_ctx,
-                timeout=timeout,
-                errors_by_provider=errors_by_provider,
-            )
-            if fallback_from_local:
-                return fallback_from_local
-
-        elif self.runtime.provider_mode == "ollama_cloud":
-            cloud_result = self.try_ollama_cloud_fallback(
-                role=role,
-                prompt=prompt,
-                temperature=temperature,
-                num_ctx=num_ctx,
-                timeout=timeout,
-                errors_by_provider=errors_by_provider,
-                primary_model=model,
-            )
-            if cloud_result:
-                return cloud_result
-
-            local_result = self.try_ollama_local_fallback(
-                role=role,
-                primary_model=model,
-                prompt=prompt,
-                temperature=temperature,
-                num_ctx=num_ctx,
-                timeout=timeout,
-                errors_by_provider=errors_by_provider,
-            )
-            if local_result:
-                return local_result
-
-        else:
-            local_result = self.try_ollama_local_fallback(
-                role=role,
-                primary_model=model,
-                prompt=prompt,
-                temperature=temperature,
-                num_ctx=num_ctx,
-                timeout=timeout,
-                errors_by_provider=errors_by_provider,
-            )
-            if local_result:
-                return local_result
+        local_result = self._try_ollama_local(
+            role=role, primary_model=model, prompt=prompt,
+            temperature=temperature, num_ctx=num_ctx, timeout=timeout,
+            errors=errors_by_provider,
+        )
+        if local_result:
+            return local_result
 
         error_details = " | ".join(errors_by_provider) if errors_by_provider else "falha desconhecida"
         raise RuntimeError(f"Todos os provedores de LLM falharam: {error_details}")
+
+    def generate_structured(
+        self,
+        *,
+        role: str,
+        model: str,
+        prompt: str,
+        schema: type[T],
+        temperature: float,
+        num_ctx: int | None = None,
+        timeout: int | None = None,
+        max_repairs: int = 1,
+    ) -> T:
+        schema_hint = build_schema_hint(schema)
+        full_prompt = (
+            f"{prompt}\n\n"
+            "Responda APENAS com um objeto JSON válido conforme o schema abaixo. "
+            "Sem texto adicional, sem markdown, sem ```json fences.\n\n"
+            f"Schema JSON:\n{schema_hint}"
+        )
+
+        attempt_prompt = full_prompt
+        last_raw = ""
+        last_error: Exception | None = None
+
+        for attempt in range(max_repairs + 1):
+            response = self.generate(
+                role=role, model=model, prompt=attempt_prompt,
+                temperature=temperature, num_ctx=num_ctx, timeout=timeout,
+            )
+            last_raw = response.response
+            try:
+                return parse_response(last_raw, schema)
+            except StructuredOutputError as exc:
+                last_error = exc
+                logger.warning(
+                    "[generate_structured] role=%s schema=%s tentativa=%d falhou: %s",
+                    role, schema.__name__, attempt + 1, exc,
+                )
+                if attempt == max_repairs:
+                    break
+                attempt_prompt = build_repair_prompt(full_prompt, last_raw, str(exc))
+
+        raise StructuredOutputError(
+            f"generate_structured falhou após {max_repairs + 1} tentativas para {schema.__name__}: {last_error}"
+        )
+
+    def _log_token_usage(
+        self,
+        provider_id: str,
+        model: str,
+        prompt: str,
+        response: str,
+        response_data: dict | None = None,
+    ) -> None:
+        usage = (response_data or {}).get("usage") if response_data else None
+        if usage:
+            input_tokens = int(usage.get("prompt_tokens", 0) or 0)
+            output_tokens = int(usage.get("completion_tokens", 0) or 0)
+            source = "provider"
+        else:
+            input_tokens = count_tokens(prompt, model)
+            output_tokens = count_tokens(response, model)
+            source = "tiktoken_estimate"
+        logger.info(
+            "[tokens] provider=%s model=%s in=%d out=%d total=%d source=%s",
+            provider_id, model, input_tokens, output_tokens,
+            input_tokens + output_tokens, source,
+        )
 
     def model_for_role(self, role: str) -> str:
         model = self.runtime.models.get(role)
@@ -131,85 +187,19 @@ class LLMClient:
             raise RuntimeError(f"Modelo não configurado para role: {role}")
         return model
 
-    def build_runtime(self) -> LLMRuntimeConfig:
-        provider_mode = self.resolve_provider_mode()
-        provider_engine = "openrouter" if provider_mode == "openrouter_free" else "ollama"
-        provider_config = self.resolve_provider_config(provider_mode, provider_engine)
-        models = self.resolve_models()
-        return LLMRuntimeConfig(
-            provider_mode=provider_mode,
-            provider_engine=provider_engine,
-            provider_config=provider_config,
-            models=models,
-        )
+    def resolve_fast_model(self, role: str) -> str:
+        """Modelo menor opcional para sub-tasks da role (classificação/filtragem).
 
-    def resolve_provider_mode(self) -> str:
-        env_provider = os.getenv("LLM_PROVIDER")
-        llm_conf = self.spec.get("llm", {})
-        raw_provider = env_provider or llm_conf.get("provider") or "ollama_local"
-        provider_mode = self.PROVIDER_ALIASES.get(raw_provider.strip().lower())
-        if not provider_mode:
-            supported = ", ".join(sorted(set(self.PROVIDER_ALIASES.values())))
-            raise RuntimeError(
-                f"LLM_PROVIDER inválido: {raw_provider}. Use um de: {supported}"
-            )
-        return provider_mode
-
-    def resolve_models(self) -> dict[str, str]:
+        Lookup: env LLM_MODEL_<ROLE>_FAST > spec.models.<role>_fast > role default.
+        """
+        env_value = os.getenv(f"LLM_MODEL_{role.upper()}_FAST")
+        if env_value:
+            return env_value.strip()
         spec_models = self.spec.get("models", {})
-        models: dict[str, str] = {}
-
-        for role in self.ROLES:
-            env_key = f"LLM_MODEL_{role.upper()}"
-            model = os.getenv(env_key) or spec_models.get(role)
-            if not model:
-                raise RuntimeError(
-                    f"Modelo ausente para role '{role}'. Defina {env_key} no .env."
-                )
-            models[role] = str(model).strip()
-
-        return models
-
-    def resolve_provider_config(self, provider_mode: str, provider_engine: str) -> dict:
-        llm_conf = self.spec.get("llm", {})
-        providers = llm_conf.get("providers", {})
-        conf = dict(providers.get(provider_engine, {}))
-
-        if provider_engine == "openrouter":
-            conf["base_url"] = (
-                os.getenv("OPENROUTER_BASE_URL")
-                or conf.get("base_url")
-                or "https://openrouter.ai/api/v1"
-            ).rstrip("/")
-            conf["api_key_env"] = os.getenv("OPENROUTER_API_KEY_ENV") or conf.get(
-                "api_key_env",
-                "OPENROUTER_API_KEY",
-            )
-            return conf
-
-        if provider_mode == "ollama_cloud":
-            conf["base_url"] = (
-                os.getenv("OLLAMA_CLOUD_BASE_URL")
-                or os.getenv("OLLAMA_BASE_URL")
-                or conf.get("cloud_base_url")
-                or "https://ollama.com"
-            ).rstrip("/")
-            cloud_api_key = (
-                os.getenv("OLLAMA_CLOUD_API_KEY")
-                or os.getenv("OLLAMA_API_KEY")
-                or ""
-            ).strip()
-            if cloud_api_key:
-                conf["api_key"] = cloud_api_key
-            return conf
-
-        conf["base_url"] = (
-            os.getenv("OLLAMA_LOCAL_BASE_URL")
-            or os.getenv("OLLAMA_BASE_URL")
-            or conf.get("base_url")
-            or "http://localhost:11434"
-        ).rstrip("/")
-        return conf
+        spec_value = spec_models.get(f"{role}_fast")
+        if spec_value:
+            return str(spec_value).strip()
+        return self.model_for_role(role)
 
     def generate_ollama(
         self,
@@ -220,10 +210,12 @@ class LLMClient:
         num_ctx: int | None,
         timeout: int | None,
         provider_config: dict | None = None,
+        provider_id: str = "ollama",
     ) -> LLMResponse:
         conf = provider_config or self.runtime.provider_config
         base_url = conf.get("base_url", "http://localhost:11434").rstrip("/")
-        payload = {
+        self.circuit_breaker.check(provider_id)
+        payload: dict = {
             "model": model,
             "prompt": prompt,
             "stream": False,
@@ -244,12 +236,22 @@ class LLMClient:
             )
             resp.raise_for_status()
         except requests.exceptions.Timeout as exc:
+            self.circuit_breaker.record_failure(provider_id, "timeout")
             raise TimeoutException("Ollama request timed out") from exc
+        except requests.exceptions.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            kind = classify_http_failure(status, type(exc).__name__)
+            self.circuit_breaker.record_failure(provider_id, kind)
+            raise RuntimeError(f"Erro HTTP {status} ao chamar Ollama: {exc}") from exc
         except requests.exceptions.RequestException as exc:
+            self.circuit_breaker.record_failure(provider_id, "error")
             raise RuntimeError(f"Erro ao chamar Ollama: {exc}") from exc
 
+        self.circuit_breaker.record_success(provider_id)
         data = resp.json()
-        return LLMResponse(response=data.get("response", "").strip())
+        response_text = data.get("response", "").strip()
+        self._log_token_usage(provider_id, model, prompt, response_text)
+        return LLMResponse(response=response_text)
 
     def generate_openrouter(
         self,
@@ -259,15 +261,17 @@ class LLMClient:
         prompt: str,
         temperature: float,
         timeout: int | None,
+        volatile_suffix: str = "",
     ) -> LLMResponse:
         conf = self.runtime.provider_config
         base_url = conf.get("base_url", "https://openrouter.ai/api/v1").rstrip("/")
         api_key_env = conf.get("api_key_env", "OPENROUTER_API_KEY")
         api_key = os.getenv(api_key_env)
         if not api_key:
-            raise RuntimeError(
-                f"Variável de ambiente ausente: {api_key_env}"
-            )
+            raise RuntimeError(f"Variável de ambiente ausente: {api_key_env}")
+
+        provider_id = "openrouter"
+        self.circuit_breaker.check(provider_id)
 
         extra_body = {**conf.get("extra_body", {})}
         extra_body.update(conf.get("extra_body_by_role", {}).get(role, {}))
@@ -276,15 +280,22 @@ class LLMClient:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-
         if conf.get("site_url"):
             headers["HTTP-Referer"] = conf["site_url"]
         if conf.get("app_name"):
             headers["X-Title"] = conf["app_name"]
 
-        payload = {
+        if volatile_suffix:
+            content: object = [
+                {"type": "text", "text": prompt, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": volatile_suffix},
+            ]
+        else:
+            content = prompt
+
+        payload: dict = {
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
             "temperature": temperature,
         }
         if extra_body:
@@ -299,50 +310,34 @@ class LLMClient:
             )
             resp.raise_for_status()
         except requests.exceptions.Timeout as exc:
+            self.circuit_breaker.record_failure(provider_id, "timeout")
             raise TimeoutException("OpenRouter request timed out") from exc
+        except requests.exceptions.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            kind = classify_http_failure(status, type(exc).__name__)
+            self.circuit_breaker.record_failure(provider_id, kind)
+            detail = f" | resposta: {exc.response.text[:300]}" if exc.response is not None else ""
+            raise RuntimeError(f"Erro HTTP {status} ao chamar OpenRouter: {exc}{detail}") from exc
         except requests.exceptions.RequestException as exc:
-            detail = ""
-            if exc.response is not None:
-                detail = f" | resposta: {exc.response.text[:300]}"
+            self.circuit_breaker.record_failure(provider_id, "error")
+            detail = f" | resposta: {exc.response.text[:300]}" if exc.response is not None else ""
             raise RuntimeError(f"Erro ao chamar OpenRouter: {exc}{detail}") from exc
 
+        self.circuit_breaker.record_success(provider_id)
         data = resp.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        if isinstance(content, list):
-            content = "\n".join(
+        raw_content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        if isinstance(raw_content, list):
+            raw_content = "\n".join(
                 part.get("text", "")
-                for part in content
+                for part in raw_content
                 if isinstance(part, dict)
             )
-        return LLMResponse(response=str(content).strip())
+        response_text = str(raw_content).strip()
+        full_prompt = prompt + (volatile_suffix or "")
+        self._log_token_usage(provider_id, model, full_prompt, response_text, response_data=data)
+        return LLMResponse(response=response_text)
 
-    def try_ollama_cloud_fallback(
-        self,
-        *,
-        role: str,
-        prompt: str,
-        temperature: float,
-        num_ctx: int | None,
-        timeout: int | None,
-        errors_by_provider: list[str],
-        primary_model: str | None = None,
-    ) -> LLMResponse | None:
-        cloud_model = self.resolve_cloud_fallback_model(role, primary_model)
-        cloud_config = self.resolve_provider_config("ollama_cloud", "ollama")
-        try:
-            return self.generate_ollama(
-                model=cloud_model,
-                prompt=prompt,
-                temperature=temperature,
-                num_ctx=num_ctx,
-                timeout=timeout,
-                provider_config=cloud_config,
-            )
-        except (RuntimeError, TimeoutException) as cloud_error:
-            errors_by_provider.append(f"ollama_cloud({cloud_model}): {cloud_error}")
-            return None
-
-    def try_ollama_local_fallback(
+    def _try_ollama_local(
         self,
         *,
         role: str,
@@ -351,41 +346,19 @@ class LLMClient:
         temperature: float,
         num_ctx: int | None,
         timeout: int | None,
-        errors_by_provider: list[str],
+        errors: list[str],
     ) -> LLMResponse | None:
-        local_model = self.resolve_local_fallback_model(role, primary_model)
-        local_config = self.resolve_provider_config("ollama_local", "ollama")
-        try:
-            return self.generate_ollama(
-                model=local_model,
-                prompt=prompt,
-                temperature=temperature,
-                num_ctx=num_ctx,
-                timeout=timeout,
-                provider_config=local_config,
-            )
-        except (RuntimeError, TimeoutException) as local_error:
-            errors_by_provider.append(f"ollama_local({local_model}): {local_error}")
-            return None
-
-    def resolve_cloud_fallback_model(self, role: str, primary_model: str | None) -> str:
-        role_env = os.getenv(f"LLM_MODEL_{role.upper()}_FALLBACK_CLOUD")
-        global_env = os.getenv("LLM_MODEL_FALLBACK_CLOUD")
-        if role_env:
-            return role_env.strip()
-        if global_env:
-            return global_env.strip()
-        if primary_model and ":cloud" in primary_model:
-            return primary_model
-        return "glm5.1:cloud"
-
-    def resolve_local_fallback_model(self, role: str, primary_model: str) -> str:
-        role_env = os.getenv(f"LLM_MODEL_{role.upper()}_FALLBACK_LOCAL")
-        global_env = os.getenv("LLM_MODEL_FALLBACK_LOCAL")
-        if role_env:
-            return role_env.strip()
-        if global_env:
-            return global_env.strip()
-        if "/" not in primary_model:
-            return primary_model
-        return "qwen2.5:14b"
+        local_model = self._resolver.resolve_local_fallback_model(role, primary_model)
+        local_config = self._resolver.resolve_config("ollama_local", "ollama")
+        logger.info("[LLM fallback] Tentando Ollama Local role=%s model=%s", role, local_model)
+        result = try_provider(
+            lambda: self.generate_ollama(
+                model=local_model, prompt=prompt, temperature=temperature,
+                num_ctx=num_ctx, timeout=timeout,
+                provider_config=local_config, provider_id="ollama_local",
+            ),
+            provider_id="ollama_local", role=role, errors=errors,
+        )
+        if result:
+            logger.info("[LLM fallback] Ollama Local OK role=%s model=%s", role, local_model)
+        return result
