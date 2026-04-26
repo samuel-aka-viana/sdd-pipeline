@@ -2,11 +2,9 @@
 """Interactive Chroma query tester for research data verification."""
 
 import sys
-from pathlib import Path
 from memory.research_chroma import ResearchChroma
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 console = Console()
 
@@ -242,7 +240,6 @@ def verify_data_integrity():
     for metadata in metadatas:
         tool = metadata.get("tool")
         url = metadata.get("url")
-        chunk_count = int(metadata.get("chunk_count", 0))
         key = f"{tool}#{url}"
         tool_chunks[key] = tool_chunks.get(key, 0) + 1
 

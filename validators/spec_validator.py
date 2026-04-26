@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 from dataclasses import dataclass
 
+from sdd.config import resolve_runtime_config
 
 @dataclass
 class ValidationResult:
@@ -64,8 +65,8 @@ class SpecValidator:
         "seguranca": ["segurança", "security", "autenticação"],
     }
 
-    def __init__(self, spec_path="spec/article_spec.yaml"):
-        self.spec = yaml.safe_load(Path(spec_path).read_text())
+    def __init__(self, spec: dict | None = None, spec_path: str | None = None):
+        self.spec = resolve_runtime_config(spec=spec, spec_path=spec_path)
         self.rules = self.spec["article"]["quality_rules"]
 
     def validate(self, artigo, secoes=None):

@@ -1,3 +1,17 @@
+required_fields:
+  - urls
+  - instalacao
+  - requisitos
+  - erros
+  - alternativas
+
+analysis_required_fields:
+  - tabela_requisitos
+  - tabela_comparacao
+  - pros
+  - contras
+  - otimizacoes
+
 scraper:
   max_chars_per_page: 16000
   max_scrapes_per_tool: 12
@@ -65,6 +79,13 @@ search:
   rerank: true
   min_score_keep: 3
   max_results_per_query: 5
+  search_queries:
+    - "{tool} minimum requirements RAM CPU"
+    - "{tool} installation official docs"
+    - "{tool} install docker-compose site:github.com"
+    - "{tool} common errors site:stackoverflow.com"
+    - "{tool} vs {alternative} comparison"
+    - "{tool} getting started tutorial"
 
 ollama:
   base_url: "http://localhost:11434"

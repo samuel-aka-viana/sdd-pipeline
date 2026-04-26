@@ -137,8 +137,7 @@ class AnalystAgent(AnalystSkill):
     """Generate structured analysis from EvidencePack. No Chroma access."""
 
     def __init__(self, memory, spec: dict):
-        super().__init__(memory)
-        self.spec = spec
+        super().__init__(memory, spec=spec)
 
     def run(self, evidence_pack: EvidencePack, ferramentas: str, foco: str) -> dict:
         """Run analysis on evidence pack and return structured analysis dict."""

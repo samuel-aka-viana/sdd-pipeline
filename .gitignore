@@ -13,3 +13,4 @@ artigos/
 __pycache__
 .codex
 .coverage
+.remember

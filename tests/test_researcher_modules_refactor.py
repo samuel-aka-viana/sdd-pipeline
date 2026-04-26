@@ -3,8 +3,6 @@ import json
 import asyncio
 from unittest.mock import Mock
 
-import pytest
-
 from sdd.researcher_modules.chain_run import finalize_chain_run, new_chain_run, write_chain_phase
 from sdd.researcher_modules.crawl4ai_config import build_crawl4ai_run_config
 from sdd.researcher_modules.debug_io import save_context_debug, save_html_debug
@@ -18,6 +16,7 @@ from sdd.researcher_modules.queries import build_queries, build_question_query
 from sdd.researcher_modules.relevance import filter_search_results
 from sdd.researcher_modules.scrape_async import async_crawl_task
 from sdd.researcher_modules.source_quality import infer_source_quality, load_domain_scrape_stats
+from sdd.researcher_modules.relevance import should_skip_url
 
 
 class DummyMarkdown:
@@ -120,6 +119,22 @@ def test_filter_search_results_respects_score_and_sorting():
     assert filtered["docker docs"][0]["url"].startswith("https://docs.docker.com")
 
 
+def test_should_skip_url_blocks_low_signal_ansible_result_domains():
+    urls = [
+        "https://a-listware.com/blog/ansible-alternatives",
+        "https://www.guru99.com/ansible-alternative.html",
+        "https://bobcares.com/blog/ansible-alternatives-open-source/",
+        "https://alternativeto.net/software/ansible-tower/",
+        "https://www.freelancer.com/job-search/ansible-serverspec/",
+        "https://speakerdeck.com/jqckb/molecule-ou-comment-tester-ses-roles-ansible",
+        "https://www.webkkk.net/shakahl/ansible-runner-docker",
+        "https://dohost.us/index.php/2025/11/04/optimizing-playbook-performance-forks-pipelining-strategy/",
+    ]
+
+    for url in urls:
+        assert should_skip_url(url, skip_domains=set(), domain_scrape_stats={}) is True
+
+
 def test_extract_section_structure_flags_tips_errors_and_tables():
     markdown = """
 ## Tip de performance
@@ -183,6 +198,7 @@ def test_build_crawl4ai_run_config_optionally_injects_markdown_generator():
         default_markdown_generator_cls=DummyMarkdownGenerator,
     )
     assert "markdown_generator" not in no_filter.kwargs
+    assert no_filter.kwargs["wait_until"] == "load"
 
 
 def test_debug_io_saves_context_and_html(tmp_path, monkeypatch):

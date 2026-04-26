@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 
-from sdd.researcher_modules.constants import (
+from sdd.constraints import (
     GENERIC_KEYWORD_TERMS,
     HIGH_TRUST_DOMAIN_HINTS,
     LOW_SIGNAL_DOMAINS,

@@ -23,6 +23,11 @@ no_placeholders:
 min_refs: 3
 min_errors: 2
 min_tips: 3
+min_solution_chars: 20
+
+hardware_sanity:
+  max_ram_minimum_gb: 2
+  message: "RAM mínimo acima de 2GB é provavelmente errado para k3s/microk8s"
 
 required_sections:
   - tldr

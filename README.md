@@ -47,7 +47,7 @@ main.py
 | `prompts/` | YAML template files loaded by `prompts/manager.py` |
 | `validators/` | Spec/schema/template validators (fail-fast at startup) |
 | `researcher_modules/` | Researcher internals (queries, scraping, context building) |
-| `utils/` | Shared utilities: `logger.py`, `article_sanitizer.py`, text helpers |
+| `utils/` | Shared utilities: `logger.py`, observability scripts, text helpers |
 | `evals/` | Batch eval runner + fixed dataset |
 | `spec/` | `article_spec.yaml` + `schema.json` — runtime contract |
 

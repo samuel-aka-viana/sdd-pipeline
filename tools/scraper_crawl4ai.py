@@ -64,7 +64,7 @@ class ScraperCrawl4AI:
 
     def _build_run_config(self):
         kwargs = {
-            "wait_until": "domcontentloaded",
+            "wait_until": "load",
             "word_count_threshold": 10,
             "excluded_tags": ["nav", "footer", "header", "aside", "form"],
             "remove_overlay_elements": True,
@@ -185,6 +185,7 @@ class ScraperCrawl4AI:
             "http_403",
             "crawl4ai_error",
             "parse_error",
+            "navigation_in_progress",
         }
         return status in retryable
 
@@ -196,9 +197,32 @@ class ScraperCrawl4AI:
             "timeout": 0.8,
             "crawl4ai_error": 0.6,
             "parse_error": 0.4,
+            "navigation_in_progress": 1.2,
         }.get(status, 0.5)
         jitter = random.uniform(0.05, 0.35)
         return base * (attempt + 1) + jitter
+
+    def _classify_crawl4ai_exception(self, error: Exception) -> dict:
+        error_detail = str(error)
+        normalized = error_detail.lower()
+        if (
+            "page.content" in normalized
+            and "navigating and changing the content" in normalized
+        ):
+            return {
+                "status": "navigation_in_progress",
+                "text": "",
+                "truncated": False,
+                "source": "crawl4ai",
+                "error_detail": error_detail,
+            }
+        return {
+            "status": "crawl4ai_error",
+            "text": "",
+            "truncated": False,
+            "source": "crawl4ai",
+            "error_detail": error_detail,
+        }
 
     def _crawl4ai_extract(self, url: str) -> dict:
         """Use Crawl4AI to extract page content."""
@@ -221,14 +245,9 @@ class ScraperCrawl4AI:
             }
         except Exception as e:
             log.debug(f"Crawl4AI failed: {e}")
-            return {
-                "status": "crawl4ai_error",
-                "text": "",
-                "truncated": False,
-                "url": url,
-                "source": "crawl4ai",
-                "error_detail": str(e),
-            }
+            result = self._classify_crawl4ai_exception(e)
+            result["url"] = url
+            return result
 
     def _extract_markdown_text(self, result) -> str:
         """Support Crawl4AI v0.8+ markdown API and older string-shaped results."""

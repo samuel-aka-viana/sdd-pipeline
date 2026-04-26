@@ -1,7 +1,6 @@
 """Tests for Chroma persistence and data validation."""
 
 import pytest
-from pathlib import Path
 from memory.research_chroma import ResearchChroma
 
 

@@ -5,7 +5,7 @@ def build_crawl4ai_run_config(
     default_markdown_generator_cls=None,
 ):
     kwargs = {
-        "wait_until": "domcontentloaded",
+        "wait_until": "load",
         "word_count_threshold": 10,
         "excluded_tags": ["nav", "footer", "header", "aside", "form"],
         "remove_overlay_elements": True,

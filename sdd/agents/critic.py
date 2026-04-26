@@ -1,7 +1,7 @@
 import logging
 import re as _re
-import yaml
 from pathlib import Path
+import yaml
 
 from llm.structured import StructuredOutputError
 from sdd.base import SkillBase
@@ -36,10 +36,10 @@ def _check_url_groundedness(artigo: str, evidence_pack) -> list[str]:
 class CriticSkill(SkillBase):
     ROLE = "critic"
 
-    def __init__(self, memory, spec_path="spec/article_spec.yaml", chroma=None):
-        super().__init__(memory, spec_path, chroma)
+    def __init__(self, memory, spec: dict | None = None, spec_path: str | None = None, chroma=None):
+        super().__init__(memory, spec=spec, spec_path=spec_path, chroma=chroma)
         self.semantic_window = self.ctx_len
-        self.validator = SpecValidator(spec_path)
+        self.validator = SpecValidator(spec=self.spec)
         # Modelo menor para classificação/filtro (semantic_check, false_positive_filter).
         # Cai pro modelo padrão do critic se critic_fast não estiver configurado.
         self.fast_model = self.llm.resolve_fast_model("critic")

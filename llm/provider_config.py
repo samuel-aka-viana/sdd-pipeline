@@ -7,7 +7,9 @@ class LLMRuntimeConfig:
     provider_mode: str
     provider_engine: str
     provider_config: dict
+    provider_configs: dict[str, dict]
     models: dict[str, str]
+    model_providers: dict[str, str]
 
 
 class ProviderConfigResolver:
@@ -28,11 +30,18 @@ class ProviderConfigResolver:
         provider_engine = "openrouter" if provider_mode == "openrouter_free" else "ollama"
         provider_config = self.resolve_config(provider_mode, provider_engine)
         models = self.resolve_models()
+        model_providers = self.resolve_model_providers()
+        provider_configs = {
+            "openrouter": self.resolve_config("openrouter_free", "openrouter"),
+            "ollama": self.resolve_config("ollama_local", "ollama"),
+        }
         return LLMRuntimeConfig(
             provider_mode=provider_mode,
             provider_engine=provider_engine,
             provider_config=provider_config,
+            provider_configs=provider_configs,
             models=models,
+            model_providers=model_providers,
         )
 
     def resolve_mode(self) -> str:
@@ -53,12 +62,29 @@ class ProviderConfigResolver:
         for role in self.ROLES:
             env_key = f"LLM_MODEL_{role.upper()}"
             model = os.getenv(env_key) or spec_models.get(role)
+            if isinstance(model, dict):
+                model = model.get("model")
             if not model:
                 raise RuntimeError(
                     f"Modelo ausente para role '{role}'. Defina {env_key} no .env."
                 )
             models[role] = str(model).strip()
         return models
+
+    def resolve_model_providers(self) -> dict[str, str]:
+        providers = self.spec.get("model_providers")
+        if isinstance(providers, dict) and providers:
+            return {role: str(providers.get(role, "ollama")).strip().lower() for role in self.ROLES}
+
+        spec_models = self.spec.get("models", {})
+        resolved: dict[str, str] = {}
+        for role in self.ROLES:
+            model_config = spec_models.get(role)
+            if isinstance(model_config, dict) and model_config.get("provider"):
+                resolved[role] = str(model_config["provider"]).strip().lower()
+            else:
+                resolved[role] = "openrouter" if self.resolve_mode() == "openrouter_free" else "ollama"
+        return resolved
 
     def resolve_config(self, provider_mode: str, provider_engine: str) -> dict:
         llm_conf = self.spec.get("llm", {})

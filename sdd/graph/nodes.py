@@ -6,10 +6,10 @@ LangGraph merges these dicts automatically.
 
 from __future__ import annotations
 
-import yaml
 from pathlib import Path
 
 from sdd.agents import ResearcherAgent, EvidenceAgent, AnalystAgent, WriterAgent, CriticAgent
+from sdd.config import load_runtime_config
 from sdd.graph.state import PipelineState
 
 
@@ -17,8 +17,8 @@ _PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 def _load_spec() -> dict:
-    """Load article spec from spec/article_spec.yaml."""
-    return yaml.safe_load((_PROJECT_ROOT / "spec/article_spec.yaml").read_text())
+    """Load runtime config from sdd/config/."""
+    return load_runtime_config(_PROJECT_ROOT / "sdd" / "config")
 
 
 def _make_memory():

@@ -1,9 +1,8 @@
-import yaml
 import logging
-from pathlib import Path
 from typing import Optional, Any
 
 from llm import LLMClient
+from sdd.config import resolve_runtime_config
 from utils.logger import EventLog
 from sdd.prompts_manager.manager import PromptManager
 
@@ -16,7 +15,7 @@ try:
 except ImportError:
     HAS_CRAWL4AI_MARKDOWN_FILTERS = False
 
-from sdd.researcher_modules.constants import (
+from sdd.constraints import (
     DEFAULT_SKIP_DOMAINS,
     DOMAIN_SCRAPE_STATS_PATH,
     HTML_DEBUG_ENABLED,
@@ -69,9 +68,21 @@ from sdd.researcher_modules.relevance import (
 from sdd.researcher_modules.scrape_async import scrape_urls_batch_async
 from sdd.researcher_modules.scrape_threaded import scrape_urls_parallel as scrape_urls_parallel_module
 from sdd.researcher_modules.source_quality import infer_source_quality, load_domain_scrape_stats
-from sdd.researcher_modules.run_flow import run_research
 
 logger = logging.getLogger(__name__)
+
+
+def _to_list_safe(value) -> list:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    try:
+        return list(value)
+    except TypeError:
+        return [value]
 
 
 class ResearcherSkill:
@@ -86,7 +97,8 @@ class ResearcherSkill:
         search_tool,
         scraper_tool,
         memory,
-        spec_path="spec/article_spec.yaml",
+        spec: dict | None = None,
+        spec_path: str | None = None,
         pipeline_logger=None,
         chroma=None,
     ):
@@ -96,14 +108,14 @@ class ResearcherSkill:
             search_tool: Search tool implementing search_multi() and save_urls()
             scraper_tool: Scraper tool implementing extract_text()
             memory: Memory system for learning lessons and logging events
-            spec_path: Path to article_spec.yaml with LLM config
+            spec_path: Optional path to legacy runtime spec
         """
         self.search = search_tool
         self.scraper = scraper_tool
         self.memory = memory
         self.chroma = chroma if chroma is not None else ResearchChroma()
-        self.spec = yaml.safe_load(Path(spec_path).read_text())
-        self.llm = LLMClient(spec_path)
+        self.spec = resolve_runtime_config(spec=spec, spec_path=spec_path)
+        self.llm = LLMClient(spec=self.spec)
         self.prompts = PromptManager(memory, prompts_dir="sdd/prompts_manager")
         self.model = self.llm.model_for_role("researcher")
         self.pipeline_logger = pipeline_logger
@@ -235,42 +247,123 @@ class ResearcherSkill:
         urls: list[str] | None = None,
         skip_search: bool = False,
     ):
-        return run_research(
+        questoes = _to_list_safe(questoes)
+        logger.debug("Starting research for tool: %s, foco: %s", tool, foco)
+
+        queries = self.build_queries(
             tool=tool,
             alternative=alternative,
             foco=foco,
             questoes=questoes,
-            refresh_search=refresh_search,
             targeted_questions_only=targeted_questions_only,
-            urls=urls,
-            skip_search=skip_search,
-            build_queries_fn=self.build_queries,
-            new_chain_run_fn=self._new_chain_run,
-            search_multi_fn=self.search.search_multi,
-            memory=self.memory,
-            load_domain_scrape_stats_fn=lambda: setattr(
-                self,
-                "domain_scrape_stats",
-                self._load_domain_scrape_stats(),
-            ),
-            filter_search_results_fn=self.filter_search_results,
-            count_results_fn=self.count_results,
-            save_urls_fn=self.search.save_urls,
-            build_context_fn=self.build_context,
-            save_context_debug_fn=self.save_context_debug,
-            get_lessons_for_prompt_fn=self.memory.get_lessons_for_prompt,
-            prompts_get_fn=self.prompts.get,
-            llm_generate_fn=self.llm.generate,
-            model=self.model,
-            temp=self.temp,
-            ctx_len=self.ctx_len,
-            timeout=self.timeout,
-            get_active_chain_run_fn=lambda: self._active_chain_run,
-            write_chain_phase_fn=self._write_chain_phase,
-            finalize_chain_run_fn=self._finalize_chain_run,
-            logger=logger,
-            get_last_scrape_stats_fn=lambda: self.last_scrape_stats,
         )
+        self._new_chain_run(tool=tool, foco=foco, alternative=alternative, queries=queries)
+
+        urls_list = _to_list_safe(urls)
+        if skip_search and len(urls_list) > 0:
+            logger.info("Skipping web search - using %s provided URLs", len(urls_list))
+            url_results = [
+                {"url": url.strip(), "title": url.strip()[:50], "snippet": ""}
+                for url in urls_list
+                if str(url).strip()
+            ]
+            results_by_query = {"provided_urls": url_results}
+            self.memory.log_event("search_skipped", {"tool": tool, "urls_provided": len(url_results)})
+        else:
+            results_by_query = self.search.search_multi(queries, force_refresh=refresh_search)
+
+        for query, results in results_by_query.items():
+            results_count = len(results) if results else 0
+            if results_count < 3:
+                self.memory.log_event(
+                    "weak_search_query",
+                    {"tool": tool, "query": query, "results_count": results_count},
+                )
+
+        self.domain_scrape_stats = self._load_domain_scrape_stats()
+        filtered_results_by_query = self.filter_search_results(
+            results_by_query=results_by_query,
+            tool=tool,
+            alternative=alternative,
+        )
+        filtered_out_count = self.count_results(results_by_query) - self.count_results(filtered_results_by_query)
+        if filtered_out_count > 0:
+            logger.info("Search guardrail filtered %d URL(s)", filtered_out_count)
+
+        self.search.save_urls(filtered_results_by_query, f"output/urls_{tool}.txt")
+        context = self.build_context(filtered_results_by_query, tool=tool)
+
+        last_scrape_stats = self.last_scrape_stats or {}
+        if last_scrape_stats.get("discovered", 0) == 0 and alternative and not skip_search:
+            self.memory.log_event(
+                "research_thin_context_fallback",
+                {"tool": tool, "alternative": alternative, "original_context_chars": len(context)},
+            )
+            fallback_queries = [
+                f"{alternative} vs {tool} comparison",
+                f"{alternative} vs {tool} pros cons 2024 2025",
+                f"{alternative} vs {tool} real world production",
+                f"{tool} vs {alternative} site:github.com",
+            ]
+            fallback_results = self.search.search_multi(fallback_queries, force_refresh=True)
+            fallback_filtered = self.filter_search_results(
+                results_by_query=fallback_results,
+                tool=tool,
+                alternative=alternative,
+            )
+            fallback_context = self.build_context(fallback_filtered, tool=tool)
+            if fallback_context.strip():
+                context = fallback_context
+
+        self.save_context_debug(tool=tool, context=context)
+
+        lessons = self.memory.get_lessons_for_prompt()
+        questoes_block = ""
+        if len(questoes) > 0:
+            lista = "\n".join(f"- {question}" for question in questoes)
+            questoes_block = f"\nBusque dados específicos para responder:\n{lista}\n"
+
+        prompt = self.prompts.get(
+            "researcher",
+            "main",
+            tool=tool,
+            foco=foco,
+            questoes_block=questoes_block,
+            lessons=lessons,
+            context=context,
+        )
+        if not prompt:
+            raise RuntimeError("Prompt template missing: prompts/researcher.yaml#main")
+
+        resp = self.llm.generate(
+            role="researcher",
+            model=self.model,
+            prompt=prompt,
+            temperature=self.temp,
+            num_ctx=self.ctx_len,
+            timeout=self.timeout,
+        )
+
+        self.memory.log_event(
+            "research_done",
+            {"tool": tool, "foco": foco, "queries": len(queries), "scrape_stats": last_scrape_stats},
+        )
+        run_data = self._active_chain_run or {}
+        synthesis_payload = {
+            "tool": tool,
+            "foco": foco,
+            "context_chars": len(context),
+            "report_chars": len(resp.response),
+            "scrape_stats": last_scrape_stats,
+            "context_debug_file": f"output/debug_context_{(tool or 'unknown').lower().replace(' ', '_')}.md",
+            "legacy_research_file": f"output/debug_research_{(tool or 'unknown').lower().replace(' ', '_')}.md",
+            "chain_run_id": run_data.get("run_id", ""),
+        }
+        if run_data:
+            run_data["phases"]["synthesis_eval"] = synthesis_payload
+            self._write_chain_phase("synthesis_eval", synthesis_payload)
+        self._finalize_chain_run()
+        return resp.response
 
     def save_context_debug(self, tool: str, context: str):
         save_context_debug_module(
@@ -509,9 +602,9 @@ class ResearcherAgent(ResearcherSkill):
     """Delegate research execution to ResearcherSkill."""
 
     def __init__(self, search_tool, scraper_tool, memory, spec: dict):
-        super().__init__(search_tool=search_tool, scraper_tool=scraper_tool, memory=memory)
-        self.spec = spec
+        super().__init__(search_tool=search_tool, scraper_tool=scraper_tool, memory=memory, spec=spec)
 
     def run(self, tool: str, foco: str, questoes: list[str]) -> dict:
         """Run research for a tool and return urls + context."""
-        return super().run(tool=tool, foco=foco, questoes=questoes)
+        context = super().run(tool=tool, foco=foco, questoes=questoes)
+        return {"context": context, "chain_runs": self.get_chain_runs()}

@@ -1,6 +1,7 @@
 import re
+from langchain_core.prompts import PromptTemplate
 
-from sdd.researcher_modules.constants import (
+from sdd.constraints import (
     DEFAULT_QUERIES,
     FOCUS_QUERIES,
     GENERIC_KEYWORD_TERMS,
@@ -76,7 +77,7 @@ def build_queries(
     templates = FOCUS_QUERIES.get(foco, DEFAULT_QUERIES)
     alt = alternative or "alternatives"
     queries = [
-        query_template.replace("{tool}", tool).replace("{alternative}", alt)
+        PromptTemplate.from_template(query_template).format(tool=tool, alternative=alt)
         for query_template in templates
     ]
 

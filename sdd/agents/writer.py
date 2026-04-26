@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 class WriterSkill(SkillBase):
     ROLE = "writer"
 
-    def __init__(self, memory, spec_path="spec/article_spec.yaml", chroma=None):
-        super().__init__(memory, spec_path, chroma)
+    def __init__(self, memory, spec: dict | None = None, spec_path: str | None = None, chroma=None):
+        super().__init__(memory, spec=spec, spec_path=spec_path, chroma=chroma)
         # TODO Phase 4: replace with LangChain native
         llm_conf = self.spec.get("llm", {})
         writer_input = llm_conf.get("writer_input", {})
@@ -162,8 +162,7 @@ class WriterAgent(WriterSkill):
     """Write article from EvidencePack and analysis. evidence_pack is mandatory."""
 
     def __init__(self, memory, spec: dict):
-        super().__init__(memory)
-        self.spec = spec
+        super().__init__(memory, spec=spec)
 
     def run(
         self,

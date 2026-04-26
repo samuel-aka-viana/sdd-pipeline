@@ -1,8 +1,7 @@
-import yaml
 import logging
-from pathlib import Path
 
 from llm import LLMClient
+from sdd.config import resolve_runtime_config
 from sdd.prompts_manager.manager import PromptManager
 
 logger = logging.getLogger(__name__)
@@ -17,10 +16,16 @@ class SkillBase:
 
     ROLE: str = ""
 
-    def __init__(self, memory, spec_path: str = "spec/article_spec.yaml", chroma=None):
+    def __init__(
+        self,
+        memory,
+        spec: dict | None = None,
+        spec_path: str | None = None,
+        chroma=None,
+    ):
         self.memory = memory
-        self.spec = yaml.safe_load(Path(spec_path).read_text())
-        self.llm = LLMClient(spec_path)
+        self.spec = resolve_runtime_config(spec=spec, spec_path=spec_path)
+        self.llm = LLMClient(spec=self.spec)
         self.prompts = PromptManager(memory, prompts_dir="sdd/prompts_manager")
         self.model = self.llm.model_for_role(self.ROLE)
         self.chroma = chroma

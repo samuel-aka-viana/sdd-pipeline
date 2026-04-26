@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from langgraph.graph import StateGraph
 
 from sdd.graph.routing import MAX_ITERATIONS, MAX_STAGNANT, route_after_critic

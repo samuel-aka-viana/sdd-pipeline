@@ -1,5 +1,4 @@
 """Unit tests for sdd/checks/ deterministic check functions."""
-import pytest
 from sdd.checks.groundedness import check_groundedness
 from sdd.checks.placeholder import check_placeholders
 from sdd.checks.question_coverage import check_question_coverage

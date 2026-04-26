@@ -105,106 +105,19 @@ def test_evidence_builder_pack_fields():
     assert pack.ferramentas == "docker e podman"
     assert pack.foco == "comparação geral"
 
-
-from unittest.mock import MagicMock
-import json
-import pytest
-from pathlib import Path
-
-
-@pytest.mark.skip(reason="legacy pipeline removed")
-def test_evidence_stage_saves_json(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "output").mkdir()
-
-    from pipeline_stages.evidence import run_evidence_stage
-    from sdd.schemas import EvidencePack
-
-    mock_pipeline = MagicMock()
-    mock_pipeline.enforce_global_timeout = MagicMock()
-
-    builder = EvidenceBuilderSkill(memory=None)
-    mock_pipeline.evidence_builder = builder
-
-    mock_memory = MagicMock()
-    mock_pipeline.memory = mock_memory
-
-    pack = run_evidence_stage(
-        mock_pipeline,
-        research=RESEARCH_WITH_URLS,
-        ferramentas="docker e podman",
-        foco="comparação geral",
-        started_at=0.0,
-    )
-
-    assert isinstance(pack, EvidencePack)
-    assert (tmp_path / "output" / "evidence_pack.json").exists()
-    data = json.loads((tmp_path / "output" / "evidence_pack.json").read_text())
-    assert data["ferramentas"] == "docker e podman"
-    mock_memory.log_event.assert_called_with("evidence_pack_built", {
-        "ferramentas": "docker e podman",
-        "total_urls_found": pack.total_urls_found,
-        "retained_urls": len(pack.retained_urls),
-        "items": len(pack.items),
-        "gaps": len(pack.gaps),
-    })
-
-
-@pytest.mark.skip(reason="legacy pipeline removed")
-def test_research_stage_does_not_save_debug_research(tmp_path, monkeypatch):
-    """save_debug("research", ...) must NOT be called from research stage."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "output").mkdir()
-
-    from pipeline_stages.research import run_research_stage
-
-    mock_pipeline = MagicMock()
-    mock_pipeline.parse_tools.return_value = ["docker"]
-    mock_pipeline.enforce_global_timeout = MagicMock()
-    mock_pipeline.researcher = MagicMock()
-    mock_pipeline.researcher.run.return_value = "# docker\nsome content https://docs.docker.com"
-    mock_pipeline.memory = MagicMock()
-    mock_pipeline.save_debug = MagicMock()
-    mock_pipeline.save_research_history = MagicMock()
-    mock_pipeline.assess_research_quality = MagicMock(return_value="ok")
-
-    run_research_stage(
-        mock_pipeline,
-        ferramentas="docker",
-        foco="instalação",
-        questoes=[],
-        started_at=0.0,
-    )
-
-    for call in mock_pipeline.save_debug.call_args_list:
-        assert call.args[0] != "research", "debug_research.md must not be saved by default"
-
-
 def test_html_debug_disabled_by_default(monkeypatch):
     """HTML_DEBUG_ENABLED must be False when SDD_HTML_DEBUG env is not set."""
     monkeypatch.delenv("SDD_HTML_DEBUG", raising=False)
     import importlib
-    import sdd.researcher_modules.constants as constants
-    importlib.reload(constants)
-    assert constants.HTML_DEBUG_ENABLED is False
+    import sdd.constraints as constraints
+    importlib.reload(constraints)
+    assert constraints.HTML_DEBUG_ENABLED is False
 
 
-@pytest.mark.skip(reason="legacy pipeline removed")
-def test_langgraph_has_evidence_node():
-    """LangGraph graph must have 'evidence' node, not 'relevance_filter'."""
-    from orchestration.langgraph_runner import LangGraphOrchestrator
-    mock_pipeline = MagicMock()
-    mock_pipeline.spec = {"pipeline": {}}
-    orch = LangGraphOrchestrator(mock_pipeline)
-    nodes = set(orch.graph.get_graph().nodes.keys())
-    assert "evidence" in nodes
-    assert "relevance_filter" not in nodes
-
-
-@pytest.mark.skip(reason="legacy pipeline removed")
 def test_pipeline_state_has_evidence_pack_field():
     """PipelineState TypedDict must declare evidence_pack field."""
-    from orchestration.langgraph_runner import PipelineState
     import typing
+    from sdd.graph.state import PipelineState
+
     hints = typing.get_type_hints(PipelineState)
     assert "evidence_pack" in hints

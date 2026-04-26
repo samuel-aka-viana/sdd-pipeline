@@ -469,6 +469,41 @@ validators/                    → validators/ (mesma raiz, sem mover)
 evals/                         → evals/ (mesma raiz, sem mover)
 ```
 
+### Ordem segura para limpar `sdd/researcher_modules/`
+
+Objetivo: remover o que ainda sustenta a arquitetura antiga sem quebrar a lógica de domínio útil do pesquisador.
+
+1. `constants.py` → mover para `sdd/constraints.py`
+   Critério de saída: `sdd/agents/researcher.py`, `relevance.py`, `source_quality.py` e `queries.py` deixam de importar `sdd.researcher_modules.constants`.
+
+2. `queries.py` → manter apenas o conteúdo de domínio
+   Manter: `FOCUS_QUERIES`, templates por foco, builders conceituais.
+   Remover/refatorar: substituição manual `.replace("{tool}", ...)` em favor de `PromptTemplate`.
+   Critério de saída: o arquivo deixa de ser “infra manual de string templating”.
+
+3. `run_flow.py` → remover
+   Motivo: é o acoplamento mais explícito com a extração antiga do god object.
+   Critério de saída: `ResearcherAgent.run()` chama helpers internos/instância diretamente, sem 35 funções injetadas.
+
+4. `chain_run.py` → reavaliar após a remoção de `run_flow.py`
+   Manter se continuar gerando artefato operacional realmente usado.
+   Remover se for apenas lifecycle manual que poderia virar estado/evento do `graph.stream()`.
+
+5. `debug_io.py` → manter por enquanto
+   Motivo: ainda serve à estratégia atual de depuração via artefatos em `output/`.
+   Só remover quando houver superfície equivalente e suficiente em `pipeline_events.jsonl` + `watch_events.py`.
+
+6. `cached_search.py`, `context_builder.py`, `markdown.py`, `crawl4ai_config.py`, `scrape_async.py`, `scrape_threaded.py`, `reanalyze.py`, `relevance.py`, `source_quality.py`
+   Status: manter.
+   Motivo: continuam sendo lógica útil do pesquisador ou infraestrutura local de scrape/contexto sem substituto claro no handoff.
+
+Regra prática:
+- Primeiro mover `constants.py`
+- Depois refatorar `queries.py`
+- Depois eliminar `run_flow.py`
+- Só então decidir `chain_run.py`
+- O restante fica até aparecer um substituto melhor no runtime novo
+
 ### Reescrever (preservar lógica, trocar esqueleto)
 
 ```

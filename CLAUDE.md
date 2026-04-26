@@ -10,7 +10,7 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 Before implementing:
 - State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
+- If multiple interpretations exist, present them; don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
@@ -34,13 +34,13 @@ When editing existing code:
 - Don't "improve" adjacent code, comments, or formatting.
 - Don't refactor things that aren't broken.
 - Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
+- If you notice unrelated dead code, mention it; don't delete it blindly.
 
 When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
+- Remove imports/variables/functions that your changes made unused.
 - Don't remove pre-existing dead code unless asked.
 
-The test: Every changed line should trace directly to the user's request.
+The test: every changed line should trace directly to the user's request.
 
 ## 4. Goal-Driven Execution
 
@@ -52,135 +52,124 @@ Transform tasks into verifiable goals:
 - "Refactor X" → "Ensure tests pass before and after"
 
 For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+```text
+1. [Step] -> verify: [check]
+2. [Step] -> verify: [check]
+3. [Step] -> verify: [check]
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
 ---
 
-## Current Architecture
+## Repositório: arquitetura atual
 
-`main.py` collects user inputs and runs `SDDPipeline` (`pipeline.py`).
+Este repositório está em arquitetura híbrida.
 
-Pipeline stages (high-level):
-1. `researcher` (`skills/researcher.py`)
-2. `analyst` (`skills/analyst.py`)
-3. `writer` (`skills/writer.py`)
-4. `critic` (`skills/critic.py`)
+O caminho principal já foi movido para:
+- `main.py`
+- `sdd/graph/*`
+- `sdd/agents/*`
+- `sdd/checks/*`
 
-LangGraph orchestration is handled by `orchestration/langgraph_runner.py` with explicit nodes:
-- `research` → `evidence` → `analysis` → `writer`
-- `question_coverage` (deterministic check before critic)
-- `critic`
-- `after_failure` (retry writer or enrich research/analysis)
-- `finalize`
-
-## Prompt System (Template-Driven)
-
-Prompts are defined in YAML files under `prompts/` and loaded through `prompts/manager.py`.
-
-Active prompt files:
-- `prompts/researcher.yaml`
-- `prompts/analyst.yaml`
-- `prompts/writer.yaml`
-- `prompts/critic.yaml`
-- `prompts/orchestrator.yaml`
-- `prompts/research_enricher.yaml`
-- `prompts/fact_checker.yaml`
-
-Startup validation runs `TemplateValidator` (`validators/template_validator.py`) and fails fast if required templates are missing/invalid.
-
-## Spec and Schema
-
-Behavior is controlled by:
+Mas ainda existem dependências legadas necessárias:
 - `spec/article_spec.yaml`
-- `spec/schema.json`
+- `memory/memory_store.py`
+- `llm/structured.py`
+- `sdd/prompts_manager/manager.py`
 
-Important settings:
-- `pipeline.orchestration.backend`: must be `langgraph`
-- `llm.context_length`: role-specific context windows
-- `llm.writer_input.max_research_chars`
-- `llm.writer_input.max_analysis_chars`
-- `llm.writer_input.max_correction_chars`
+Não trate a migração como concluída se esses pontos continuarem em uso.
 
-Current defaults are aligned to 16k context by role and 16k/16k/4k writer input caps.
+## Fluxo principal atual
 
-## Memory and Persistence
+Entrada e execução:
+1. `main.py` coleta ferramentas, contexto, foco, questões e opções de reuso.
+2. `sdd/graph/runner.py` compila o `StateGraph` com `MemorySaver`.
+3. `sdd/graph/nodes.py` executa:
+   - `research`
+   - `evidence`
+   - `analysis`
+   - `writer`
+   - `critic`
+   - `finalize`
+4. `output/pipeline_events.jsonl` é a trilha operacional principal.
 
-- Chroma vector storage: `.memory/chroma_db/` via `memory/research_chroma.py`
-- Episodic/procedural memory JSON files under `.memory/`
-- Run outputs under `output/`
+## Áreas do código
 
-Common output artifacts:
-- `output/pipeline_events.jsonl`
-- `output/metrics.json`
-- `output/urls_*.txt`
-- `output/debug_html_<tool>/`
-- `output/debug_research_<tool>.md` (saved per-tool research)
-- `output/evidence_pack.json` (structured evidence pack per run)
-- `output/chains/` (tool chains + pipeline summaries)
-- `output/evals/` (batch eval reports/scores/events)
+### `sdd/graph/`
+- `runner.py`: compila e executa o grafo.
+- `state.py`: define `PipelineState`.
+- `nodes.py`: chama agentes diretamente.
+- `routing.py`: decide retry/finalização.
 
-## Evals
+### `sdd/agents/`
+- `researcher.py`: pesquisa, scraping e indexação.
+- `evidence.py`: constrói `EvidencePack`.
+- `analyst.py`: análise estruturada.
+- `writer.py`: gera o artigo.
+- `critic.py`: roda checks determinísticos e crítica semântica.
 
-Batch eval runner:
-- `evals/batch_runner.py`
-- Dataset: `evals/cases.jsonl`
+### `sdd/checks/`
+Checks determinísticos que devem rodar antes de depender do LLM:
+- `placeholder.py`
+- `groundedness.py`
+- `question_coverage.py`
+- `structural.py`
 
-Typical commands:
-```bash
-uv run python -m evals.batch_runner
-uv run python -m evals.batch_runner --limit 2
-uv run python -m evals.batch_runner --case-id docker_vs_podman_dev_linux
-```
+### `llm/`
+- `client.py`: cliente central atual.
+- `provider_config.py`: resolução de provider/model.
+- `structured.py`: structured output com repair loop; ainda ativo.
+- `token_counter.py`: estimativa de tokens.
 
-Optional LangSmith env vars:
-- `LANGSMITH_API_KEY`
-- `LANGSMITH_PROJECT`
-- `LANGSMITH_DATASET`
+### `memory/`
+- `research_chroma.py`: cache vetorial/local de pesquisa.
+- `memory_store.py`: memória operacional ainda usada pelo fluxo atual.
 
-## Developer Workflow
+### Config e contratos
+- `sdd/config/*.yaml`: configuração nova introduzida na reconstrução.
+- `spec/article_spec.yaml`: contrato legado ainda usado no runtime atual.
+- `spec/schema.json`: schema da spec legada.
 
-Install/sync dependencies:
-```bash
-uv sync
-```
+## Regras operacionais para este repo
 
-Run tests:
-```bash
-uv run pytest -q
-```
+- Leia o estado real do repositório antes de afirmar que a arquitetura antiga morreu.
+- `output/pipeline_events.jsonl` é a primeira fonte de verdade para travamento, silêncio ou fluxo quebrado.
+- `utils/watch_events.py` é o monitor principal de execução.
+- Se a dúvida for "o que o estágio X realmente consome", trace o valor em memória e o artefato de debug correspondente.
+- Em mudanças de qualidade/runtime, prefira corrigir o pipeline ou os agentes, não editar artefatos gerados manualmente.
+- `main.py` deve continuar fino; a superfície detalhada de observabilidade fica em `utils/watch_events.py`.
 
-Run lint:
-```bash
-uv run ruff check .
-```
+## O que já foi removido
 
-Run app:
-```bash
-python main.py
-python main.py --refresh-search
-```
+Estes diretórios não são mais a arquitetura ativa:
+- `pipeline_stages/`
+- `orchestration/`
+- `skills/`
 
-Interactive run also supports:
-- Reusing previously saved URL lists (`output/urls_*.txt`)
-- Reusing previously saved research snapshots (`output/debug_research_<tool>.md`)
+## O que ainda não deve ser excluído
 
-Observe events:
-```bash
-python watch_events.py
-python watch_events.py --tail=30
-python watch_events.py --watch
-```
+- `spec/article_spec.yaml`
+  Ainda é lido por `sdd/base.py`, `llm/client.py`, `sdd/graph/nodes.py`, `validators/spec_validator.py` e testes.
+- `memory/memory_store.py`
+  Ainda é usado por `main.py`, `sdd/graph/nodes.py`, `evals/batch_runner.py` e alguns testes.
+- `llm/structured.py`
+  Ainda é requerido por `sdd/agents/critic.py` via `generate_structured()`.
+- `sdd/prompts_manager/manager.py`
+  Ainda é requerido por `sdd/base.py` e `sdd/agents/researcher.py`.
 
-## Implementation Notes
+## O que é candidato real de migração/remoção
 
-- Prefer editing templates in `prompts/*.yaml` over hardcoded prompt strings.
-- Keep orchestration logic inside LangGraph path; avoid reintroducing parallel manual flows in `pipeline.py`.
-- Preserve `question_coverage` before `critic` and the retry/enrichment behavior in `after_failure`.
-- If adding a new prompt file/template, integrate and validate it (runtime + tests).
-- If changing spec keys, keep `spec/schema.json` in sync and update relevant tests.
+- Uso direto de `spec/article_spec.yaml`
+- `PromptManager`
+- `generate_structured()` / `llm/structured.py`
+- `MemoryStore` no caminho principal
+- Testes que ainda importam `pipeline`, `pipeline_stages` ou `orchestration`
+
+## Verificação
+
+Ordem padrão neste repo:
+1. `uv run pytest -q`
+2. `uv run ruff check`
+
+Não declare a migração concluída sem passar pelas duas verificações.

@@ -1,20 +1,18 @@
 import pytest
-from pathlib import Path
-import yaml
+from sdd.config import load_runtime_config
 from validators.spec_validator import SpecValidator
 
 
 @pytest.fixture
 def spec():
-    """Load the article spec from spec/article_spec.yaml"""
-    spec_path = Path("spec/article_spec.yaml")
-    return yaml.safe_load(spec_path.read_text())
+    """Load the merged runtime config from sdd/config/."""
+    return load_runtime_config()
 
 
 @pytest.fixture
 def validator():
-    """Create SpecValidator instance with the spec"""
-    return SpecValidator("spec/article_spec.yaml")
+    """Create SpecValidator instance with the merged runtime config."""
+    return SpecValidator()
 
 
 @pytest.fixture
