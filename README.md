@@ -1,195 +1,157 @@
 # SDD Tech Writer
 
-Automated technical article generator. Given a tool (e.g. *Docker vs Podman*), the pipeline researches the web, extracts structured evidence, analyses it, drafts a long-form article, and iteratively critiques/rewrites it until quality criteria pass.
+Gerador local de artigos técnicos em português. O pipeline recebe ferramentas, contexto, foco e perguntas; pesquisa fontes técnicas, monta evidências, gera análise, escreve o artigo e passa por crítica determinística/semântica.
 
----
+Fluxo atual:
 
-## Problem and solution
-
-Writing a thorough, source-grounded technical article requires hours of research, synthesis, and self-review. SDD automates that loop:
-
-1. **Research** — issues parallel search queries, scrapes content, indexes chunks in Chroma, and produces per-tool research snapshots.
-2. **Evidence** — deterministically parses research into a structured `EvidencePack` (items, gaps, retained URLs) with no LLM involved.
-3. **Analysis** — LLM synthesises the evidence pack into structured analysis, using only grounded facts.
-4. **Writing** — LLM drafts the article from the analysis; `evidence_summary` is injected as volatile context after the cache breakpoint so prompt caching is effective.
-5. **Critic** — validates structure, question coverage, and URL groundedness (any URL in the article must appear in the evidence pack); retries or enriches research on failure.
-
-Orchestration is handled by **LangGraph** so the retry/enrichment flow is explicit and testable.
-
----
-
-## Architecture
-
-```
+```text
 main.py
-└── SDDPipeline (pipeline.py)
-    └── LangGraphOrchestrator (orchestration/langgraph_runner.py)
-        ├── research      ← ResearcherSkill  (skills/researcher.py)
-        ├── evidence      ← EvidenceBuilderSkill (skills/evidence_builder.py)
-        ├── analysis      ← AnalystSkill     (skills/analyst.py)
-        ├── writer        ← WriterSkill      (skills/writer.py)
-        ├── question_coverage  (deterministic check)
-        ├── critic        ← CriticSkill      (skills/critic.py)
-        ├── after_failure ← retry writer / enrich research+analysis
-        └── finalize
+  -> sdd.graph.runner.run_pipeline()
+  -> research -> evidence -> analysis -> writer -> critic -> finalize
+  -> output/article.md
 ```
 
-### Key packages
-
-| Package | Responsibility |
-|---|---|
-| `skills/` | One class per pipeline role; shared schemas in `skills/schemas.py` |
-| `skills/evidence_builder.py` | Deterministic research→EvidencePack; no LLM |
-| `pipeline_stages/` | Thin LangGraph node wrappers around each skill |
-| `llm/` | Unified LLM client, provider config, circuit breaker, structured output |
-| `memory/` | Chroma vector index + episodic memory JSON |
-| `tools/` | Search, scraping (Crawl4AI), source ranker |
-| `prompts/` | YAML template files loaded by `prompts/manager.py` |
-| `validators/` | Spec/schema/template validators (fail-fast at startup) |
-| `researcher_modules/` | Researcher internals (queries, scraping, context building) |
-| `utils/` | Shared utilities: `logger.py`, observability scripts, text helpers |
-| `evals/` | Batch eval runner + fixed dataset |
-| `spec/` | `article_spec.yaml` + `schema.json` — runtime contract |
-
-### Output artifacts (`output/`)
-
-| File / dir | Contents |
-|---|---|
-| `pipeline_events.jsonl` | Structured event stream (one JSON per line) |
-| `metrics.json` | Run metrics |
-| `evidence_pack.json` | Structured evidence pack for the last run |
-| `urls_*.txt` | Discovered URLs per tool |
-| `debug_research_<tool>.md` | Raw research snapshot per tool |
-| `debug_html_<tool>/` | HTML debug (only if `SDD_HTML_DEBUG=1`) |
-| `chains/` | Tool chains + pipeline summaries |
-| `evals/` | Batch eval reports, scores, events |
+O caminho principal hoje é `main.py` + `sdd/graph/*` + `sdd/agents/*`. A arquitetura antiga baseada em `pipeline.py`, `skills/`, `pipeline_stages/` e `orchestration/` já foi removida.
 
 ---
 
-## Tech stack
+## Arquitetura Atual
 
-- **Python 3.12** + **uv** (dependency management)
-- **LangGraph** — pipeline orchestration and retry flow
-- **Pydantic v2** — structured LLM outputs and internal contracts
-- **Crawl4AI** — async/threaded web scraping
-- **Chroma** — local vector store for semantic search and caching
-- **Rich** — terminal output and progress
-- **Ruff** — linting
-- **pytest** — test suite (198 tests)
-
-LLM providers supported (configurable in `.env`):
-
-| Mode | Description |
+| Área | Responsabilidade |
 |---|---|
-| `openrouter_free` | OpenRouter free tier; automatic fallback to Ollama local |
-| `ollama_local` | Local Ollama instance |
+| `main.py` | CLI interativa; coleta entrada, reuso opcional de URLs/pesquisa e dispara o grafo |
+| `cli/prompts.py` | Helpers de prompt do terminal |
+| `sdd/graph/` | LangGraph: state, nodes, routing e runner com `MemorySaver` |
+| `sdd/agents/` | Researcher, Evidence, Analyst, Writer e Critic |
+| `sdd/checks/` | Checks determinísticos antes da crítica LLM |
+| `sdd/config/` | Configuração split: modelos, pipeline, qualidade e infraestrutura |
+| `sdd/constraints.py` | Constantes de domínio, queries, blacklist e heurísticas de fonte |
+| `sdd/researcher_modules/` | Internals do researcher: scrape, relevância, contexto, cache e debug |
+| `sdd/prompts_manager/` | Prompts YAML e loader atual |
+| `llm/` | Cliente LLM, provider config, structured output e token counter |
+| `memory/research_chroma.py` | Chroma local para indexação e busca semântica |
+| `memory/memory_store.py` | Memória operacional ainda usada por CLI/grafo/evals |
+| `tools/` | Busca, scraping Crawl4AI/fallback e ranking de fontes |
+| `utils/` | Observabilidade, logger e utilitários operacionais de Chroma |
+| `evals/` | Runner de avaliação em lote |
+
+## Estado Real da Migração
+
+Concluído:
+- Grafo LangGraph em `sdd/graph`.
+- Agentes em `sdd/agents`.
+- Checks determinísticos em `sdd/checks`.
+- Config split em `sdd/config`.
+- Constantes do researcher movidas para `sdd/constraints.py`.
+- `researcher_modules/run_flow.py` removido.
+- `utils/article_sanitizer.py` removido.
+- Blacklist de fontes fracas centralizada em `LOW_SIGNAL_DOMAINS`.
+
+Ainda híbrido:
+- `PromptManager` ainda é usado por `sdd/base.py` e pelo researcher.
+- `llm/structured.py` e `generate_structured()` ainda são usados pelo critic.
+- `memory/memory_store.py` ainda é dependência do fluxo principal.
+- LangSmith existe nos evals, mas o pipeline principal ainda só grava eventos locais em `output/pipeline_events.jsonl`.
 
 ---
 
-## Installation
+## Configuração
+
+A fonte principal de configuração nova fica em `sdd/config/`:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `models.yaml` | Modelos por papel e provider explícito |
+| `pipeline.yaml` | Iterações, timeout e backend |
+| `quality.yaml` | Regras de qualidade e seções obrigatórias |
+| `infra.yaml` | Search, scraper e providers externos |
+
+`spec/article_spec.yaml` ainda existe por compatibilidade com validações antigas, mas o runtime novo usa `sdd.config.load_runtime_config()` como visão consolidada.
+
+---
+
+## Instalação
 
 ```bash
-# 1. Create and activate a virtual environment
 uv venv --python 3.12
 source .venv/bin/activate
-
-# 2. Install dependencies
 uv sync
-
-# 3. Copy and fill in environment variables
 cp .env.example .env
-$EDITOR .env
 ```
+
+Se usar embeddings Ollama no Chroma:
+
+```bash
+uv add ollama
+```
+
+Importante: uma collection Chroma persistida não pode trocar de embedding function. Se `.memory/chroma_db` foi criado com embedding default e você ligar `CHROMA_EMBEDDING_PROVIDER=ollama`, recrie/reindexe o banco.
 
 ---
 
-## Environment variables (`.env`)
+## `.env`
+
+Principais variáveis:
 
 ```env
-# ── Provider ────────────────────────────────────────────────────────────────
-# openrouter_free | ollama_local
 LLM_PROVIDER=openrouter_free
 
-# ── Models per role (required) ───────────────────────────────────────────────
 LLM_MODEL_RESEARCHER=<model-id>
 LLM_MODEL_ANALYST=<model-id>
 LLM_MODEL_WRITER=<model-id>
 LLM_MODEL_CRITIC=<model-id>
 
-# ── OpenRouter ────────────────────────────────────────────────────────────────
 OPENROUTER_API_KEY=<your-key>
-# OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OLLAMA_LOCAL_BASE_URL=http://localhost:11434
 
-# ── Fallback: if OpenRouter fails, fall back to local Ollama ─────────────────
-# Global fallback model (all roles):
-# LLM_MODEL_FALLBACK_LOCAL=qwen2.5:14b
-# Per-role fallbacks:
-# LLM_MODEL_RESEARCHER_FALLBACK_LOCAL=qwen2.5:14b-instruct-q5_K_M
-# LLM_MODEL_ANALYST_FALLBACK_LOCAL=gemma4:26b
-# LLM_MODEL_WRITER_FALLBACK_LOCAL=qwen3.6:35b
-# LLM_MODEL_CRITIC_FALLBACK_LOCAL=deepseek-r1:14b
-# LLM_MODEL_CRITIC_FAST=qwen2.5:7b-instruct-q5_K_M
-
-# ── Ollama local ──────────────────────────────────────────────────────────────
-# OLLAMA_LOCAL_BASE_URL=http://localhost:11434
-
-# ── Chroma embeddings (optional) ─────────────────────────────────────────────
+# Opcional: Chroma com Ollama embeddings
 # CHROMA_EMBEDDING_PROVIDER=ollama
 # CHROMA_EMBED_MODEL=nomic-embed-text:latest
 # CHROMA_EMBED_OLLAMA_URL=http://localhost:11434
 
-# ── Debug ─────────────────────────────────────────────────────────────────────
-# SDD_HTML_DEBUG=1   # save raw HTML to output/debug_html_<tool>/
-
-# ── LangSmith (optional tracing) ─────────────────────────────────────────────
-# LANGSMITH_API_KEY=
-# LANGSMITH_PROJECT=
-# LANGSMITH_DATASET=
+# Debug HTML bruto
+# SDD_HTML_DEBUG=1
 ```
 
 ---
 
-## Usage
+## Uso
 
-### Run the pipeline
+Rodar pipeline:
 
 ```bash
 python main.py
-python main.py --refresh-search          # force fresh web search
+python main.py --refresh-search
 ```
 
-The CLI prompts for tool name (e.g. `Docker vs Podman`) and focus context, then runs the full pipeline. Articles are saved to `artigos/`.
+Saída principal:
 
-### Monitor events in real time
+```text
+output/article.md
+output/pipeline_events.jsonl
+output/urls_<tool>.txt
+output/debug_context_<tool>.md
+output/chains/
+```
+
+Monitorar eventos:
 
 ```bash
-# One-shot snapshot of all events
 python -m utils.watch_events
-
-# Filter by event type
 python -m utils.watch_events url_found
-
-# Show last 30 events
 python -m utils.watch_events --tail=30
-
-# Watch mode (refresh every 2s)
 python -m utils.watch_events --watch
-
-# Tail -f style (continuous stream)
 python -m utils.watch_events --follow
 ```
 
-### Chroma utilities
+Chroma:
 
 ```bash
-# Re-index historical research files into Chroma
 python -m utils.repopulate_chroma
-
-# Interactive query tester / integrity check
 python -m utils.test_chroma_queries
 ```
 
-### Batch evals
+Evals:
 
 ```bash
 uv run python -m evals.batch_runner
@@ -199,35 +161,74 @@ uv run python -m evals.batch_runner --case-id docker_vs_podman_dev_linux
 
 ---
 
-## Developer workflow
+## Filtros e Blacklist
+
+O filtro de fontes vive em `sdd/constraints.py`.
+
+Camadas principais:
+- `DEFAULT_SKIP_DOMAINS`: redes sociais, vídeo, mídia, domínios fora do escopo técnico.
+- `LOW_SIGNAL_DOMAINS`: SEO/listicles, marketplaces, comparadores genéricos, job search, conteúdo raso.
+- `LOW_SIGNAL_PATH_MARKERS`: padrões de path como `/compare/`.
+- `TRUSTED_TECH_DOMAINS`: domínios técnicos confiáveis.
+
+Depois da análise de `output/urls_ansible.txt`, foram adicionados à blacklist domínios como `guru99.com`, `bobcares.com`, `alternativeto.net`, `freelancer.com`, `speakerdeck.com`, `webkkk.net`, `dohost.us`, `a-listware.com` e similares.
+
+Fontes mantidas como potencialmente úteis:
+- docs oficiais (`docs.ansible.com`, `docs.redhat.com`)
+- GitHub quando o resultado é projeto/repositório relevante
+- fornecedores técnicos como AWS, HashiCorp, Elastic
+- blogs técnicos com conteúdo específico, caso passem pelos filtros de relevância
+
+---
+
+## Scraping
+
+Scraper principal:
+- `tools/scraper_crawl4ai.py`
+
+Fallback:
+- `tools/scraper_tool.py`
+- `tools/scraper_factory.py`
+
+Tratamentos já aplicados:
+- `CrawlerRunConfig.wait_until = "load"` para reduzir captura durante navegação.
+- erro `Page.content ... navigating and changing the content` classificado como `navigation_in_progress`.
+- `navigation_in_progress` é retryável com backoff maior.
+- domínios fracos entram em blacklist para reduzir custo de scraping.
+
+---
+
+## Verificação
+
+Estado mais recente validado:
 
 ```bash
-# Lint
-uv run ruff check .
-
-# Test suite (198 tests)
 uv run pytest -q
+# 213 passed, 1 skipped
 ```
 
+Lint:
+
+```bash
+uv run ruff check
+```
+
+O `ruff` ainda falha por complexidade (`C901`) em pontos estruturais antigos:
+- `memory/research_chroma.py::chunk_content`
+- `sdd/researcher_modules/context_builder.py::build_context`
+- `sdd/researcher_modules/reanalyze.py::reanalyze_urls_for_tips_and_errors`
+- `sdd/researcher_modules/scrape_async.py::async_crawl_task`
+- `utils/repopulate_chroma.py::repopulate_from_files`
+- `utils/test_chroma_queries.py::verify_data_integrity`
+- `utils/watch_events.py::print_event`, `stats_summary`, `parse_cli_args`
+
 ---
 
-## Spec and behaviour
+## Regras de Manutenção
 
-Core behaviour is controlled by `spec/article_spec.yaml` (validated against `spec/schema.json`). Key settings:
-
-| Key | Default | Notes |
-|---|---|---|
-| `pipeline.orchestration.backend` | `langgraph` | Must not change |
-| `llm.context_length.{role}` | `16000` | Per-role context window |
-| `llm.writer_input.max_research_chars` | `16000` | Research cap for writer |
-| `llm.writer_input.max_analysis_chars` | `16000` | Analysis cap for writer |
-| `llm.writer_input.max_correction_chars` | `4000` | Critic feedback cap |
-
----
-
-## Maintenance notes
-
-- Prefer editing `prompts/*.yaml` over hardcoding prompt strings in Python.
-- When adding a new prompt template, integrate it in the flow and add validation tests.
-- When changing spec keys, keep `spec/schema.json` in sync.
-- `evidence_summary` must stay in the volatile section (after `<<<CACHE_BREAKPOINT>>>`) of `prompts/writer.yaml` — it contains run-specific URL data and must not be cached.
+- `main.py` deve continuar fino.
+- Observabilidade detalhada fica em `output/pipeline_events.jsonl` e `utils/watch_events.py`.
+- Corrigir qualidade no pipeline/agentes/filtros, não em artefatos gerados manualmente.
+- Blacklist deve bloquear domínios claramente fracos; não bloquear docs oficiais, vendor docs ou repositórios úteis sem evidência.
+- Se trocar embedding do Chroma, reindexar a collection.
+- Antes de declarar pronto: `uv run pytest -q`; depois atacar `ruff` quando a mudança tocar arquivos com lint.
