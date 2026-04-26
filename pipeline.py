@@ -20,6 +20,7 @@ from skills.analyst import AnalystSkill
 from skills.writer import WriterSkill
 from skills.critic import CriticSkill
 from skills.relevance_filter import RelevanceFilterSkill
+from skills.evidence_builder import EvidenceBuilderSkill
 from skills.router import ToolTypeRouter
 from validators.template_validator import TemplateValidator
 from logger import PipelineLogger
@@ -130,6 +131,10 @@ class SDDPipeline:
             self.memory,
             max_urls=int(relevance_conf.get("max_urls", 30)),
             embedding_fn=self._build_embedding_fn() if relevance_conf.get("rerank", True) else None,
+        )
+        self.evidence_builder = EvidenceBuilderSkill(
+            self.memory,
+            max_urls=int(relevance_conf.get("max_urls", 30)),
         )
         self.router     = ToolTypeRouter()
         self.orchestrator = LangGraphOrchestrator(self)
@@ -325,6 +330,22 @@ class SDDPipeline:
     def run_relevance_filter_stage(self, research: str, started_at: float) -> str:
         from pipeline_stages.relevance import run_relevance_filter_stage
         return run_relevance_filter_stage(self, research=research, started_at=started_at)
+
+    def run_evidence_stage(
+        self,
+        research: str,
+        ferramentas: str,
+        foco: str,
+        started_at: float,
+    ):
+        from pipeline_stages.evidence import run_evidence_stage
+        return run_evidence_stage(
+            self,
+            research=research,
+            ferramentas=ferramentas,
+            foco=foco,
+            started_at=started_at,
+        )
 
     def run_analysis_stage(
         self,

@@ -104,3 +104,45 @@ def test_evidence_builder_pack_fields():
     pack = builder.build(RESEARCH_WITH_URLS, "docker e podman", "comparação geral")
     assert pack.ferramentas == "docker e podman"
     assert pack.foco == "comparação geral"
+
+
+from unittest.mock import MagicMock
+import json
+from pathlib import Path
+
+
+def test_evidence_stage_saves_json(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "output").mkdir()
+
+    from pipeline_stages.evidence import run_evidence_stage
+    from skills.schemas import EvidencePack
+
+    mock_pipeline = MagicMock()
+    mock_pipeline.enforce_global_timeout = MagicMock()
+
+    builder = EvidenceBuilderSkill(memory=None)
+    mock_pipeline.evidence_builder = builder
+
+    mock_memory = MagicMock()
+    mock_pipeline.memory = mock_memory
+
+    pack = run_evidence_stage(
+        mock_pipeline,
+        research=RESEARCH_WITH_URLS,
+        ferramentas="docker e podman",
+        foco="comparação geral",
+        started_at=0.0,
+    )
+
+    assert isinstance(pack, EvidencePack)
+    assert (tmp_path / "output" / "evidence_pack.json").exists()
+    data = json.loads((tmp_path / "output" / "evidence_pack.json").read_text())
+    assert data["ferramentas"] == "docker e podman"
+    mock_memory.log_event.assert_called_with("evidence_pack_built", {
+        "ferramentas": "docker e podman",
+        "total_urls_found": pack.total_urls_found,
+        "retained_urls": len(pack.retained_urls),
+        "items": len(pack.items),
+        "gaps": len(pack.gaps),
+    })
