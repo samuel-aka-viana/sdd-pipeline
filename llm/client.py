@@ -8,12 +8,7 @@ from httpx import TimeoutException
 from pydantic import BaseModel
 from typing import TypeVar
 
-from llm.circuit_breaker import (
-    CircuitBreakerRegistry,
-    CircuitOpenError,
-    classify_http_failure,
-)
-from llm.fallback import try_provider
+# TODO Phase 2: add with_fallbacks() pattern from LangChain
 from llm.provider_config import LLMRuntimeConfig, ProviderConfigResolver
 from llm.structured import (
     StructuredOutputError,
@@ -39,7 +34,7 @@ class LLMClient:
         self._resolver = ProviderConfigResolver(self.spec)
         self.runtime: LLMRuntimeConfig = self._resolver.build_runtime()
         self.provider = self.runtime.provider_engine
-        self.circuit_breaker = CircuitBreakerRegistry()
+        # TODO Phase 2: add with_fallbacks() pattern from LangChain
 
     def generate_cached(
         self,
@@ -62,17 +57,18 @@ class LLMClient:
                 role=role, model=model, prompt=stable_prefix,
                 temperature=temperature, num_ctx=num_ctx, timeout=timeout,
             )
-        if self.runtime.provider_mode == "openrouter_free" and "/" in model:
-            result = try_provider(
-                lambda: self.generate_openrouter(
-                    role=role, model=model, prompt=stable_prefix,
-                    temperature=temperature, timeout=timeout,
-                    volatile_suffix=volatile_suffix,
-                ),
-                provider_id="openrouter", role=role,
-            )
-            if result:
-                return result
+        # TODO Phase 2: add with_fallbacks() pattern from LangChain
+        # if self.runtime.provider_mode == "openrouter_free" and "/" in model:
+        #     result = try_provider(
+        #         lambda: self.generate_openrouter(
+        #             role=role, model=model, prompt=stable_prefix,
+        #             temperature=temperature, timeout=timeout,
+        #             volatile_suffix=volatile_suffix,
+        #         ),
+        #         provider_id="openrouter", role=role,
+        #     )
+        #     if result:
+        #         return result
         return self.generate(
             role=role, model=model, prompt=stable_prefix + volatile_suffix,
             temperature=temperature, num_ctx=num_ctx, timeout=timeout,
@@ -91,15 +87,17 @@ class LLMClient:
         errors_by_provider: list[str] = []
 
         if self.runtime.provider_mode == "openrouter_free" and "/" in model:
-            result = try_provider(
-                lambda: self.generate_openrouter(
-                    role=role, model=model, prompt=prompt,
-                    temperature=temperature, timeout=timeout,
-                ),
-                provider_id="openrouter", role=role, errors=errors_by_provider,
-            )
-            if result:
-                return result
+            # TODO Phase 2: add with_fallbacks() pattern from LangChain
+            # result = try_provider(
+            #     lambda: self.generate_openrouter(
+            #         role=role, model=model, prompt=prompt,
+            #         temperature=temperature, timeout=timeout,
+            #     ),
+            #     provider_id="openrouter", role=role, errors=errors_by_provider,
+            # )
+            # if result:
+            #     return result
+            pass
 
         local_result = self._try_ollama_local(
             role=role, primary_model=model, prompt=prompt,
@@ -214,7 +212,7 @@ class LLMClient:
     ) -> LLMResponse:
         conf = provider_config or self.runtime.provider_config
         base_url = conf.get("base_url", "http://localhost:11434").rstrip("/")
-        self.circuit_breaker.check(provider_id)
+        # TODO Phase 2: add with_fallbacks() pattern from LangChain
         payload: dict = {
             "model": model,
             "prompt": prompt,
@@ -236,18 +234,17 @@ class LLMClient:
             )
             resp.raise_for_status()
         except requests.exceptions.Timeout as exc:
-            self.circuit_breaker.record_failure(provider_id, "timeout")
+            # TODO Phase 2: add with_fallbacks() pattern from LangChain
             raise TimeoutException("Ollama request timed out") from exc
         except requests.exceptions.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
-            kind = classify_http_failure(status, type(exc).__name__)
-            self.circuit_breaker.record_failure(provider_id, kind)
+            # TODO Phase 2: add with_fallbacks() pattern from LangChain
             raise RuntimeError(f"Erro HTTP {status} ao chamar Ollama: {exc}") from exc
         except requests.exceptions.RequestException as exc:
-            self.circuit_breaker.record_failure(provider_id, "error")
+            # TODO Phase 2: add with_fallbacks() pattern from LangChain
             raise RuntimeError(f"Erro ao chamar Ollama: {exc}") from exc
 
-        self.circuit_breaker.record_success(provider_id)
+        # TODO Phase 2: add with_fallbacks() pattern from LangChain
         data = resp.json()
         response_text = data.get("response", "").strip()
         self._log_token_usage(provider_id, model, prompt, response_text)
@@ -271,7 +268,7 @@ class LLMClient:
             raise RuntimeError(f"Variável de ambiente ausente: {api_key_env}")
 
         provider_id = "openrouter"
-        self.circuit_breaker.check(provider_id)
+        # TODO Phase 2: add with_fallbacks() pattern from LangChain
 
         extra_body = {**conf.get("extra_body", {})}
         extra_body.update(conf.get("extra_body_by_role", {}).get(role, {}))
@@ -310,20 +307,19 @@ class LLMClient:
             )
             resp.raise_for_status()
         except requests.exceptions.Timeout as exc:
-            self.circuit_breaker.record_failure(provider_id, "timeout")
+            # TODO Phase 2: add with_fallbacks() pattern from LangChain
             raise TimeoutException("OpenRouter request timed out") from exc
         except requests.exceptions.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
-            kind = classify_http_failure(status, type(exc).__name__)
-            self.circuit_breaker.record_failure(provider_id, kind)
+            # TODO Phase 2: add with_fallbacks() pattern from LangChain
             detail = f" | resposta: {exc.response.text[:300]}" if exc.response is not None else ""
             raise RuntimeError(f"Erro HTTP {status} ao chamar OpenRouter: {exc}{detail}") from exc
         except requests.exceptions.RequestException as exc:
-            self.circuit_breaker.record_failure(provider_id, "error")
+            # TODO Phase 2: add with_fallbacks() pattern from LangChain
             detail = f" | resposta: {exc.response.text[:300]}" if exc.response is not None else ""
             raise RuntimeError(f"Erro ao chamar OpenRouter: {exc}{detail}") from exc
 
-        self.circuit_breaker.record_success(provider_id)
+        # TODO Phase 2: add with_fallbacks() pattern from LangChain
         data = resp.json()
         raw_content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         if isinstance(raw_content, list):
@@ -351,14 +347,16 @@ class LLMClient:
         local_model = self._resolver.resolve_local_fallback_model(role, primary_model)
         local_config = self._resolver.resolve_config("ollama_local", "ollama")
         logger.info("[LLM fallback] Tentando Ollama Local role=%s model=%s", role, local_model)
-        result = try_provider(
-            lambda: self.generate_ollama(
-                model=local_model, prompt=prompt, temperature=temperature,
-                num_ctx=num_ctx, timeout=timeout,
-                provider_config=local_config, provider_id="ollama_local",
-            ),
-            provider_id="ollama_local", role=role, errors=errors,
-        )
-        if result:
-            logger.info("[LLM fallback] Ollama Local OK role=%s model=%s", role, local_model)
-        return result
+        # TODO Phase 2: add with_fallbacks() pattern from LangChain
+        # result = try_provider(
+        #     lambda: self.generate_ollama(
+        #         model=local_model, prompt=prompt, temperature=temperature,
+        #         num_ctx=num_ctx, timeout=timeout,
+        #         provider_config=local_config, provider_id="ollama_local",
+        #     ),
+        #     provider_id="ollama_local", role=role, errors=errors,
+        # )
+        # if result:
+        #     logger.info("[LLM fallback] Ollama Local OK role=%s model=%s", role, local_model)
+        # return result
+        return None

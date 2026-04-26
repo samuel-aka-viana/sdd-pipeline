@@ -1,5 +1,5 @@
 """Tests for EvidenceBuilderSkill and EvidencePack schemas."""
-from skills.schemas import EvidenceGap, EvidenceItem, EvidencePack
+from sdd.schemas import EvidenceGap, EvidenceItem, EvidencePack
 
 
 def test_evidence_item_valid():
@@ -116,7 +116,7 @@ def test_evidence_stage_saves_json(tmp_path, monkeypatch):
     (tmp_path / "output").mkdir()
 
     from pipeline_stages.evidence import run_evidence_stage
-    from skills.schemas import EvidencePack
+    from sdd.schemas import EvidencePack
 
     mock_pipeline = MagicMock()
     mock_pipeline.enforce_global_timeout = MagicMock()

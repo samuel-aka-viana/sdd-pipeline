@@ -143,7 +143,7 @@ class EnrichmentCoordinator:
         )
         if prompt:
             try:
-                from skills.schemas import TargetedQuestionsResult
+                from sdd.schemas import TargetedQuestionsResult
                 parsed = p.llm.generate_structured(
                     role="researcher",
                     model=p.llm.model_for_role("researcher"),

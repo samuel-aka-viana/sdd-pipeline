@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from skills.schemas import EvidencePack
+from sdd.schemas import EvidencePack
 
 
 def run_evidence_stage(

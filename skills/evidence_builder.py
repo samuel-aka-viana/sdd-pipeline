@@ -10,7 +10,7 @@ from skills.relevance_filter import (
     RelevanceFilterSkill,
     ScoredUrl,
 )
-from skills.schemas import EvidenceGap, EvidenceItem, EvidencePack
+from sdd.schemas import EvidenceGap, EvidenceItem, EvidencePack
 
 logger = logging.getLogger(__name__)
 

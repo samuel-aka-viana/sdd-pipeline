@@ -192,7 +192,7 @@ class TestAnalystSkillMocked:
     @pytest.mark.deterministic
     @patch('skills.base.LLMClient')
     def test_analyst_run_with_evidence_pack(self, mock_llm_class):
-        from skills.schemas import EvidenceItem, EvidencePack
+        from sdd.schemas import EvidenceItem, EvidencePack
 
         mock_instance = MagicMock()
         mock_instance.model_for_role.return_value = "test-model"
