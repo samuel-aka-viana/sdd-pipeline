@@ -73,7 +73,7 @@ Pipeline stages (high-level):
 4. `critic` (`skills/critic.py`)
 
 LangGraph orchestration is handled by `orchestration/langgraph_runner.py` with explicit nodes:
-- `research` → `analysis` → `writer`
+- `research` → `evidence` → `analysis` → `writer`
 - `question_coverage` (deterministic check before critic)
 - `critic`
 - `after_failure` (retry writer or enrich research/analysis)
@@ -121,6 +121,7 @@ Common output artifacts:
 - `output/urls_*.txt`
 - `output/debug_html_<tool>/`
 - `output/debug_research_<tool>.md` (saved per-tool research)
+- `output/evidence_pack.json` (structured evidence pack per run)
 - `output/chains/` (tool chains + pipeline summaries)
 - `output/evals/` (batch eval reports/scores/events)
 

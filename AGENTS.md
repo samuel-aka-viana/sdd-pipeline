@@ -80,7 +80,7 @@ Este documento descreve a arquitetura atual do projeto `sdd-ollama`, com o nome 
 
 ## Entrada e runtime
 - `main.py`: CLI principal para rodar o pipeline e coordenar execução ponta-a-ponta.
-- `pipeline.py`: orquestrador principal do fluxo (research -> relevance -> analysis -> writer -> critic), com integração de memória e LLM.
+- `pipeline.py`: orquestrador principal do fluxo (research -> evidence -> analysis -> writer -> critic), com integração de memória e LLM.
 - `orchestration/langgraph_runner.py`: execução do fluxo via LangGraph, incluindo nós e transições.
 - `watch_events.py`: monitor único de eventos (one-shot, `--watch` e `--follow`/tail) para acompanhar execução em tempo real.
 - `logger.py`: estrutura de logging de eventos e utilitários de telemetria local.
@@ -91,11 +91,11 @@ Este documento descreve a arquitetura atual do projeto `sdd-ollama`, com o nome 
 - `skills/analyst.py`: skill de análise estruturada dos dados de pesquisa.
 - `skills/writer.py`: skill de geração do artigo final com prompt caching.
 - `skills/critic.py`: skill de avaliação semântica/estrutural com outputs estruturados.
-- `skills/relevance_filter.py`: priorização de URLs e rerank semântico pós-research.
+- `skills/evidence_builder.py`: constrói EvidencePack estruturado a partir do research bruto (determinístico, sem LLM).
 - `skills/router.py`: roteamento/seleção de skills no fluxo.
 
 ## Módulos de suporte às skills
-- `skills/schemas.py`: todos os modelos Pydantic de saída estruturada (critic + orchestrator).
+- `skills/schemas.py`: todos os modelos Pydantic de saída estruturada (EvidencePack, EvidenceItem, EvidenceGap, critic + orchestrator).
 - `skills/templates.py`: builders de template puros sem estado (analyst + writer).
 - `skills/utils.py`: constantes e funções utilitárias puras compartilhadas pelas skills.
 
@@ -117,7 +117,7 @@ Este documento descreve a arquitetura atual do projeto `sdd-ollama`, com o nome 
 
 ## Pipeline stages (granularização do pipeline)
 - `pipeline_stages/research.py`: estágio de pesquisa por ferramenta (inclui paralelização por ferramenta).
-- `pipeline_stages/relevance.py`: estágio de relevância e rerank de URLs.
+- `pipeline_stages/evidence.py`: estágio de construção do EvidencePack (research → evidence_pack estruturado).
 - `pipeline_stages/analysis.py`: estágio de análise com execução sequencial/paralela.
 - `pipeline_stages/writer.py`: estágio de escrita por iteração.
 - `pipeline_stages/critic.py`: estágio de crítica por iteração.
@@ -186,4 +186,4 @@ Este documento descreve a arquitetura atual do projeto `sdd-ollama`, com o nome 
 - `skills/researcher.py`: facade para `researcher_modules/*`.
 - Skills suportadas por três módulos centralizados: `schemas.py`, `templates.py`, `utils.py`.
 - `llm/client.py` delega config de provider para `llm/provider_config.py` e fallback para `llm/fallback.py`.
-- Suíte local de referência: `179 passed, 1 skipped`.
+- Suíte local de referência: `198 passed, 1 skipped`.
